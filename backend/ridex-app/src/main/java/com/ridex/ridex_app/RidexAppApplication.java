@@ -8,9 +8,13 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 @SpringBootApplication
 public class RidexAppApplication {
 
-    public static void main(String[] args) {
-        // Run the whole application in UTC (see timezone note in docs)
+    // Runs once, when the JVM first loads this class. This happens both when
+    // the app starts via main() and when tests start Spring without main().
+    static {
         TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
+    }
+
+    public static void main(String[] args) {
         SpringApplication.run(RidexAppApplication.class, args);
     }
 }
