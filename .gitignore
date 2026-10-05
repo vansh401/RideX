@@ -1,0 +1,20 @@
+# Secrets: never commit these
+.env
+*.pem
+*.key
+
+# Java / Maven
+target/
+*.class
+*.log
+
+# Node / React
+node_modules/
+dist/
+.vite/
+
+# IDEs / OS
+.idea/
+*.iml
+.DS_Store
+Thumbs.db
