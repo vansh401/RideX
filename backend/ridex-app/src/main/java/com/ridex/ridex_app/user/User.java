@@ -65,6 +65,13 @@ public class User {
     void touchUpdatedAt() {
         this.updatedAt = Instant.now();
     }
+        public void activate() {
+        this.status = UserStatus.ACTIVE;
+    }
+
+    public void suspend() {
+        this.status = UserStatus.SUSPENDED;
+    }
 
     public UUID getId() { return id; }
     public String getFullName() { return fullName; }

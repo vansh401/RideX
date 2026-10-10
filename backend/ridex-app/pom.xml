@@ -91,6 +91,10 @@
     	<groupId>org.springframework.boot</groupId>
     	<artifactId>spring-boot-starter-security</artifactId>
 		</dependency>
+		<dependency>
+    <groupId>org.springframework.security</groupId>
+    <artifactId>spring-security-oauth2-jose</artifactId>
+</dependency>
 
 	</dependencies>
 
@@ -108,6 +112,9 @@
             <artifactId>maven-surefire-plugin</artifactId>
             <configuration>
                 <argLine>-Duser.timezone=UTC</argLine>
+				<environmentVariables>
+            		<JWT_SECRET>test-only-secret-never-used-outside-tests-0123456789</JWT_SECRET>
+        		</environmentVariables>
             </configuration>
         </plugin>
     </plugins>

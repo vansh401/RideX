@@ -7,6 +7,8 @@ import java.util.Map;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 
+import org.springframework.security.authentication.BadCredentialsException;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -67,6 +69,18 @@ public class GlobalExceptionHandler {
                                                        HttpServletRequest request) {
         return build(HttpStatus.FORBIDDEN,
                 "You do not have permission to perform this action", request, Map.of());
+    }
+
+        @ExceptionHandler(BadCredentialsException.class)
+    public ResponseEntity<ApiError> handleBadCredentials(BadCredentialsException ex,
+                                                         HttpServletRequest request) {
+        return build(HttpStatus.UNAUTHORIZED, "Invalid email or password", request, Map.of());
+    }
+
+    @ExceptionHandler(ForbiddenException.class)
+    public ResponseEntity<ApiError> handleForbidden(ForbiddenException ex,
+                                                    HttpServletRequest request) {
+        return build(HttpStatus.FORBIDDEN, ex.getMessage(), request, Map.of());
     }
 
     @ExceptionHandler(Exception.class)
