@@ -77,6 +77,12 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.UNAUTHORIZED, "Invalid email or password", request, Map.of());
     }
 
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<ApiError> handleNotFound(ResourceNotFoundException ex,
+                                                   HttpServletRequest request) {
+        return build(HttpStatus.NOT_FOUND, ex.getMessage(), request, Map.of());
+    }
+
     @ExceptionHandler(ForbiddenException.class)
     public ResponseEntity<ApiError> handleForbidden(ForbiddenException ex,
                                                     HttpServletRequest request) {

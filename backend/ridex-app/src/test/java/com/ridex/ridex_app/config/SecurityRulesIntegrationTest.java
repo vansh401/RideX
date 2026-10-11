@@ -8,8 +8,13 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
+
+import com.ridex.ridex_app.jwt.JwtService;
+import com.ridex.ridex_app.user.Role;
+import com.ridex.ridex_app.user.User;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class SecurityRulesIntegrationTest {
@@ -17,13 +22,23 @@ class SecurityRulesIntegrationTest {
     @Value("${local.server.port}")
     private int port;
 
+    @Autowired
+    private JwtService jwtService;
+
     private final HttpClient client = HttpClient.newHttpClient();
 
-    private HttpResponse<String> get(String path) throws Exception {
-        HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + path))
-                .GET()
-                .build();
-        return client.send(request, HttpResponse.BodyHandlers.ofString());
+    private String tokenFor(Role role) {
+        // The user only exists in memory; the token is real and correctly signed
+        User user = new User("Test Person", "test@example.com", "+910000000000", "hash", role);
+        return jwtService.createAccessToken(user).value();
+    }
+
+    private HttpResponse<String> get(String path, String bearerToken) throws Exception {
+        HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create("http://localhost:" + port + path)).GET();
+        if (bearerToken != null) {
+            builder.header("Authorization", "Bearer " + bearerToken);
+        }
+        return client.send(builder.build(), HttpResponse.BodyHandlers.ofString());
     }
 
     private HttpResponse<String> postJson(String path, String json) throws Exception {
@@ -36,14 +51,12 @@ class SecurityRulesIntegrationTest {
 
     @Test
     void healthEndpointIsPublic() throws Exception {
-        HttpResponse<String> response = get("/api/health");
-
-        assertThat(response.statusCode()).isEqualTo(200);
+        assertThat(get("/api/health", null).statusCode()).isEqualTo(200);
     }
 
     @Test
     void anyOtherEndpointRequiresAuthentication() throws Exception {
-        HttpResponse<String> response = get("/api/rides");
+        HttpResponse<String> response = get("/api/rides", null);
 
         assertThat(response.statusCode()).isEqualTo(401);
         assertThat(response.body()).contains("\"status\":401");
@@ -57,5 +70,40 @@ class SecurityRulesIntegrationTest {
 
         assertThat(response.statusCode()).isEqualTo(400);
         assertThat(response.body()).contains("Validation failed");
+    }
+
+    @Test
+    void garbageTokenIsTreatedAsNotLoggedIn() throws Exception {
+        assertThat(get("/api/users/me", "not-a-real-token").statusCode()).isEqualTo(401);
+    }
+
+    @Test
+    void validTokenForAUserThatDoesNotExistGets404() throws Exception {
+        HttpResponse<String> response = get("/api/users/me", tokenFor(Role.RIDER));
+
+        assertThat(response.statusCode()).isEqualTo(404);
+    }
+
+    @Test
+    void riderCannotEnterTheAdminArea() throws Exception {
+        HttpResponse<String> response = get("/api/admin/ping", tokenFor(Role.RIDER));
+
+        assertThat(response.statusCode()).isEqualTo(403);
+        assertThat(response.body()).contains("\"status\":403");
+    }
+
+    @Test
+    void adminCanEnterTheAdminArea() throws Exception {
+        assertThat(get("/api/admin/ping", tokenFor(Role.ADMIN)).statusCode()).isEqualTo(200);
+    }
+
+    @Test
+    void riderCannotCallDriverEndpointProtectedByMethodSecurity() throws Exception {
+        assertThat(get("/api/driver/ping", tokenFor(Role.RIDER)).statusCode()).isEqualTo(403);
+    }
+
+    @Test
+    void driverCanCallDriverEndpoint() throws Exception {
+        assertThat(get("/api/driver/ping", tokenFor(Role.DRIVER)).statusCode()).isEqualTo(200);
     }
 }
