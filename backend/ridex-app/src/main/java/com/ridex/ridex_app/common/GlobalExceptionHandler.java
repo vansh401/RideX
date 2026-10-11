@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import com.ridex.ridex_app.auth.InvalidRefreshTokenException;
+import com.ridex.ridex_app.auth.InvalidVerificationTokenException;
 
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -83,6 +84,12 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiError> handleInvalidRefreshToken(InvalidRefreshTokenException ex,
                                                               HttpServletRequest request) {
         return build(HttpStatus.UNAUTHORIZED, ex.getMessage(), request, Map.of());
+    }
+
+    @ExceptionHandler(InvalidVerificationTokenException.class)
+    public ResponseEntity<ApiError> handleInvalidVerificationToken(InvalidVerificationTokenException ex,
+                                                                   HttpServletRequest request) {
+        return build(HttpStatus.BAD_REQUEST, ex.getMessage(), request, Map.of());
     }
 
     @ExceptionHandler(ResourceNotFoundException.class)

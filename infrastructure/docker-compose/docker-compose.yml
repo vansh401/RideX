@@ -16,5 +16,12 @@ services:
       timeout: 3s
       retries: 10
 
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: ridex-mailpit
+    ports:
+      - "1025:1025"   # SMTP: where the app sends mail
+      - "8025:8025"   # web inbox: where you read it
+
 volumes:
   ridex_pgdata:

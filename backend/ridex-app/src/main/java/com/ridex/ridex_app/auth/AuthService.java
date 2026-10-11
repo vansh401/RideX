@@ -24,6 +24,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final RefreshTokenService refreshTokenService;
+    private final EmailVerificationService emailVerificationService;
 
     // Hash of a throwaway password. Checked when the email is unknown so that
     // "unknown email" and "wrong password" take about the same time.
@@ -32,11 +33,13 @@ public class AuthService {
     public AuthService(UserRepository userRepository,
                        PasswordEncoder passwordEncoder,
                        JwtService jwtService,
-                       RefreshTokenService refreshTokenService) {
+                       RefreshTokenService refreshTokenService,
+                       EmailVerificationService emailVerificationService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.refreshTokenService = refreshTokenService;
+        this.emailVerificationService = emailVerificationService;
         this.dummyPasswordHash = passwordEncoder.encode("dummy-password-for-timing");
     }
 
@@ -56,7 +59,9 @@ public class AuthService {
         Role role = Role.valueOf(request.role().name());
 
         User user = new User(request.fullName(), email, phone, passwordHash, role);
-        return userRepository.save(user);
+        User saved = userRepository.save(user);
+        emailVerificationService.issueFor(saved);   // the email goes out after this commits
+        return saved;
     }
 
     @Transactional

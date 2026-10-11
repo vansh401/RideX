@@ -30,8 +30,9 @@ class AuthServiceTest {
     private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
     private final JwtService jwtService = mock(JwtService.class);
     private final RefreshTokenService refreshTokenService = mock(RefreshTokenService.class);
-    private final AuthService authService =
-            new AuthService(userRepository, passwordEncoder, jwtService, refreshTokenService);
+    private final EmailVerificationService emailVerificationService = mock(EmailVerificationService.class);
+    private final AuthService authService = new AuthService(
+            userRepository, passwordEncoder, jwtService, refreshTokenService, emailVerificationService);
 
     private static RefreshTokenService.IssuedToken issued(String value) {
         return new RefreshTokenService.IssuedToken(value, Instant.now().plusSeconds(3600));
@@ -64,6 +65,7 @@ class AuthServiceTest {
         assertThat(passwordEncoder.matches("Secret123", user.getPasswordHash())).isTrue();
         assertThat(user.getRole()).isEqualTo(Role.RIDER);
         assertThat(user.getStatus()).isEqualTo(UserStatus.PENDING_VERIFICATION);
+        verify(emailVerificationService).issueFor(user);
     }
 
     @Test
@@ -74,6 +76,7 @@ class AuthServiceTest {
                 .isInstanceOf(ConflictException.class)
                 .hasMessage("Email is already registered");
         verify(userRepository, never()).save(any(User.class));
+        verify(emailVerificationService, never()).issueFor(any(User.class));
     }
 
     @Test

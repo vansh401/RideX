@@ -73,6 +73,13 @@ class SecurityRulesIntegrationTest {
     }
 
     @Test
+    void emailVerificationEndpointsArePublic() throws Exception {
+        // Invalid bodies: validation (400) proves security let the request through
+        assertThat(postJson("/api/auth/verify-email", "{}").statusCode()).isEqualTo(400);
+        assertThat(postJson("/api/auth/resend-verification", "{}").statusCode()).isEqualTo(400);
+    }
+
+    @Test
     void garbageTokenIsTreatedAsNotLoggedIn() throws Exception {
         assertThat(get("/api/users/me", "not-a-real-token").statusCode()).isEqualTo(401);
     }

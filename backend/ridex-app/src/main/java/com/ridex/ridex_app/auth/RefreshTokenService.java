@@ -1,13 +1,7 @@
 package com.ridex.ridex_app.auth;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Base64;
-import java.util.HexFormat;
 import java.util.UUID;
 
 import org.slf4j.Logger;
@@ -16,11 +10,12 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.ridex.ridex_app.security.OpaqueTokens;
+
 @Service
 public class RefreshTokenService {
 
     private static final Logger log = LoggerFactory.getLogger(RefreshTokenService.class);
-    private static final SecureRandom RANDOM = new SecureRandom();
 
     private final RefreshTokenRepository repository;
     private final Duration ttl;
@@ -83,23 +78,13 @@ public class RefreshTokenService {
     }
 
     private IssuedToken create(UUID userId, UUID familyId, Instant now) {
-        byte[] bytes = new byte[32];            // 256 bits of randomness
-        RANDOM.nextBytes(bytes);
-        String raw = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+        String raw = OpaqueTokens.generate();
         Instant expiresAt = now.plus(ttl);
         repository.save(new RefreshToken(userId, familyId, hash(raw), expiresAt));
         return new IssuedToken(raw, expiresAt);
     }
 
-    // SHA-256 is enough here: the token is 256 random bits, so it cannot be brute-forced,
-    // and a deterministic hash lets us look it up. (BCrypt is for low-entropy passwords.)
     static String hash(String rawToken) {
-        try {
-            byte[] digest = MessageDigest.getInstance("SHA-256")
-                    .digest(rawToken.getBytes(StandardCharsets.UTF_8));
-            return HexFormat.of().formatHex(digest);
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException(e);
-        }
+        return OpaqueTokens.sha256(rawToken);
     }
 }
