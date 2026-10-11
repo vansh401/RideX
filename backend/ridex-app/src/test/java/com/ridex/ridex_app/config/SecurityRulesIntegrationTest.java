@@ -80,6 +80,12 @@ class SecurityRulesIntegrationTest {
     }
 
     @Test
+    void passwordResetEndpointsArePublic() throws Exception {
+        assertThat(postJson("/api/auth/forgot-password", "{}").statusCode()).isEqualTo(400);
+        assertThat(postJson("/api/auth/reset-password", "{}").statusCode()).isEqualTo(400);
+    }
+
+    @Test
     void garbageTokenIsTreatedAsNotLoggedIn() throws Exception {
         assertThat(get("/api/users/me", "not-a-real-token").statusCode()).isEqualTo(401);
     }

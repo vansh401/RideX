@@ -33,4 +33,19 @@ public class SmtpEmailSender implements EmailSender {
                 + "you can ignore this email.\n");
         mailSender.send(message);
     }
+
+    @Override
+    public void sendPasswordResetEmail(String toEmail, String fullName, String resetUrl) {
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom(from);
+        message.setTo(toEmail);
+        message.setSubject("Reset your RideX password");
+        message.setText("Hi " + fullName + ",\n\n"
+                + "We received a request to reset your RideX password. "
+                + "Choose a new one by opening this link:\n\n"
+                + resetUrl + "\n\n"
+                + "The link works once and expires soon. If you did not ask for this, "
+                + "ignore this email: your password has not changed.\n");
+        mailSender.send(message);
+    }
 }

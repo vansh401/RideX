@@ -29,4 +29,17 @@ class SmtpEmailSenderTest {
                 .contains("Asha Rao")
                 .contains("http://localhost:5173/verify-email?token=abc");
     }
+
+    @Test
+    void sendsThePasswordResetLinkToTheUser() {
+        sender.sendPasswordResetEmail("asha@example.com", "Asha Rao",
+                "http://localhost:5173/reset-password?token=xyz");
+
+        ArgumentCaptor<SimpleMailMessage> sent = ArgumentCaptor.forClass(SimpleMailMessage.class);
+        verify(mailSender).send(sent.capture());
+        SimpleMailMessage message = sent.getValue();
+        assertThat(message.getTo()).containsExactly("asha@example.com");
+        assertThat(message.getSubject()).isEqualTo("Reset your RideX password");
+        assertThat(message.getText()).contains("http://localhost:5173/reset-password?token=xyz");
+    }
 }

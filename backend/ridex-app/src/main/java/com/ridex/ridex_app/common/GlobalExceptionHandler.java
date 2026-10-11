@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import com.ridex.ridex_app.auth.InvalidRefreshTokenException;
+import com.ridex.ridex_app.auth.InvalidResetTokenException;
 import com.ridex.ridex_app.auth.InvalidVerificationTokenException;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -89,6 +90,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(InvalidVerificationTokenException.class)
     public ResponseEntity<ApiError> handleInvalidVerificationToken(InvalidVerificationTokenException ex,
                                                                    HttpServletRequest request) {
+        return build(HttpStatus.BAD_REQUEST, ex.getMessage(), request, Map.of());
+    }
+
+    @ExceptionHandler(InvalidResetTokenException.class)
+    public ResponseEntity<ApiError> handleInvalidResetToken(InvalidResetTokenException ex,
+                                                            HttpServletRequest request) {
         return build(HttpStatus.BAD_REQUEST, ex.getMessage(), request, Map.of());
     }
 

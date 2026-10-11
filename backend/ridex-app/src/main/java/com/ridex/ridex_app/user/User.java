@@ -73,6 +73,11 @@ public class User {
         this.status = UserStatus.SUSPENDED;
     }
 
+    /** Takes an already-hashed password; hashing is the caller's job. */
+    public void changePasswordHash(String newPasswordHash) {
+        this.passwordHash = newPasswordHash;
+    }
+
     public UUID getId() { return id; }
     public String getFullName() { return fullName; }
     public String getEmail() { return email; }
