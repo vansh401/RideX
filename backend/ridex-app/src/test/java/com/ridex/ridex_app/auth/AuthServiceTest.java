@@ -29,8 +29,13 @@ class AuthServiceTest {
     private final UserRepository userRepository = mock(UserRepository.class);
     private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
     private final JwtService jwtService = mock(JwtService.class);
+    private final RefreshTokenService refreshTokenService = mock(RefreshTokenService.class);
     private final AuthService authService =
-            new AuthService(userRepository, passwordEncoder, jwtService);
+            new AuthService(userRepository, passwordEncoder, jwtService, refreshTokenService);
+
+    private static RefreshTokenService.IssuedToken issued(String value) {
+        return new RefreshTokenService.IssuedToken(value, Instant.now().plusSeconds(3600));
+    }
 
     private RegisterRequest registerRequest() {
         return new RegisterRequest(
@@ -89,10 +94,12 @@ class AuthServiceTest {
         when(userRepository.findByEmail("asha@example.com")).thenReturn(Optional.of(user));
         when(jwtService.createAccessToken(user))
                 .thenReturn(new JwtService.AccessToken("token-value", Instant.now().plusSeconds(900), 900));
+        when(refreshTokenService.issueForNewSession(user.getId())).thenReturn(issued("refresh-value"));
 
         LoginResponse response = authService.login(new LoginRequest("Asha@Example.com", "Secret123"));
 
         assertThat(response.accessToken()).isEqualTo("token-value");
+        assertThat(response.refreshToken()).isEqualTo("refresh-value");
         assertThat(response.tokenType()).isEqualTo("Bearer");
         assertThat(response.expiresInSeconds()).isEqualTo(900);
         assertThat(response.user().email()).isEqualTo("asha@example.com");
@@ -143,5 +150,53 @@ class AuthServiceTest {
         assertThatThrownBy(() -> authService.login(new LoginRequest("asha@example.com", "Secret123")))
                 .isInstanceOf(ForbiddenException.class)
                 .hasMessage("This account has been suspended");
+    }
+
+    // ---------- refresh / logout ----------
+
+    @Test
+    void refreshReturnsNewTokensAndUsesTheCurrentRoleFromTheDatabase() {
+        User user = activeUser();
+        when(refreshTokenService.rotate("old-refresh"))
+                .thenReturn(new RefreshTokenService.Rotation(user.getId(), issued("new-refresh")));
+        when(userRepository.findById(user.getId())).thenReturn(Optional.of(user));
+        when(jwtService.createAccessToken(user))
+                .thenReturn(new JwtService.AccessToken("new-access", Instant.now().plusSeconds(900), 900));
+
+        LoginResponse response = authService.refresh("old-refresh");
+
+        assertThat(response.accessToken()).isEqualTo("new-access");
+        assertThat(response.refreshToken()).isEqualTo("new-refresh");
+        assertThat(response.user().email()).isEqualTo("asha@example.com");
+    }
+
+    @Test
+    void refreshRejectsAndRevokesEverythingWhenTheUserIsSuspended() {
+        User user = activeUser();
+        user.suspend();
+        when(refreshTokenService.rotate("old-refresh"))
+                .thenReturn(new RefreshTokenService.Rotation(user.getId(), issued("new-refresh")));
+        when(userRepository.findById(user.getId())).thenReturn(Optional.of(user));
+
+        assertThatThrownBy(() -> authService.refresh("old-refresh"))
+                .isInstanceOf(InvalidRefreshTokenException.class);
+        verify(refreshTokenService).revokeAllForUser(user.getId());
+        verify(jwtService, never()).createAccessToken(any(User.class));
+    }
+
+    @Test
+    void refreshPropagatesInvalidTokenErrors() {
+        when(refreshTokenService.rotate("bad"))
+                .thenThrow(new InvalidRefreshTokenException("Invalid refresh token"));
+
+        assertThatThrownBy(() -> authService.refresh("bad"))
+                .isInstanceOf(InvalidRefreshTokenException.class);
+    }
+
+    @Test
+    void logoutRevokesTheSession() {
+        authService.logout("some-refresh");
+
+        verify(refreshTokenService).revokeSessionOf("some-refresh");
     }
 }

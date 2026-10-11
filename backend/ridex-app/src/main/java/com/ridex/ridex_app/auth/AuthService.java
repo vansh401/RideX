@@ -4,6 +4,7 @@ import java.util.Locale;
 import java.util.Optional;
 
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +23,7 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final RefreshTokenService refreshTokenService;
 
     // Hash of a throwaway password. Checked when the email is unknown so that
     // "unknown email" and "wrong password" take about the same time.
@@ -29,10 +31,12 @@ public class AuthService {
 
     public AuthService(UserRepository userRepository,
                        PasswordEncoder passwordEncoder,
-                       JwtService jwtService) {
+                       JwtService jwtService,
+                       RefreshTokenService refreshTokenService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.refreshTokenService = refreshTokenService;
         this.dummyPasswordHash = passwordEncoder.encode("dummy-password-for-timing");
     }
 
@@ -55,7 +59,7 @@ public class AuthService {
         return userRepository.save(user);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public LoginResponse login(LoginRequest request) {
         String email = request.email().trim().toLowerCase(Locale.ROOT);
         Optional<User> found = userRepository.findByEmail(email);
@@ -76,8 +80,34 @@ public class AuthService {
             throw new ForbiddenException("Please verify your email before logging in");
         }
 
-        JwtService.AccessToken token = jwtService.createAccessToken(user);
-        return new LoginResponse(token.value(), "Bearer", token.expiresInSeconds(),
-                UserSummary.from(user));
+        return issueTokens(user, refreshTokenService.issueForNewSession(user.getId()));
+    }
+
+    /**
+     * Trades a refresh token for a new access token and a new refresh token (rotation).
+     * Unlike the access token, this re-reads the user, so a changed role or a suspension
+     * takes effect here. noRollbackFor keeps the revocations done before an exception.
+     */
+    @Transactional(noRollbackFor = AuthenticationException.class)
+    public LoginResponse refresh(String rawRefreshToken) {
+        RefreshTokenService.Rotation rotation = refreshTokenService.rotate(rawRefreshToken);
+
+        User user = userRepository.findById(rotation.userId()).orElse(null);
+        if (user == null || user.getStatus() != UserStatus.ACTIVE) {
+            refreshTokenService.revokeAllForUser(rotation.userId());
+            throw new InvalidRefreshTokenException("Invalid refresh token");
+        }
+        return issueTokens(user, rotation.newToken());
+    }
+
+    /** Logout: the whole session (token family) stops being refreshable. Always succeeds. */
+    public void logout(String rawRefreshToken) {
+        refreshTokenService.revokeSessionOf(rawRefreshToken);
+    }
+
+    private LoginResponse issueTokens(User user, RefreshTokenService.IssuedToken refreshToken) {
+        JwtService.AccessToken access = jwtService.createAccessToken(user);
+        return new LoginResponse(access.value(), refreshToken.value(), "Bearer",
+                access.expiresInSeconds(), UserSummary.from(user));
     }
 }
