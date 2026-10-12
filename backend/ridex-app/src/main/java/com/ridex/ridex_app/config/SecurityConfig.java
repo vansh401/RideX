@@ -41,6 +41,8 @@ public class SecurityConfig {
                 .formLogin(form -> form.disable())
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**", "/api/health").permitAll()
+                        // API docs. Disable them in production (springdoc.*.enabled=false)
+                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated())
                 // Run our JWT filter before Spring's username/password filter position

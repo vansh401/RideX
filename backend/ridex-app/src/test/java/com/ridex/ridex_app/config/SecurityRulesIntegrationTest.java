@@ -86,6 +86,24 @@ class SecurityRulesIntegrationTest {
     }
 
     @Test
+    void apiDocumentationIsPublicAndDescribesTheApi() throws Exception {
+        HttpResponse<String> docs = get("/v3/api-docs", null);
+
+        assertThat(docs.statusCode()).isEqualTo(200);
+        assertThat(docs.body())
+                .contains("RideX API")
+                .contains("/api/auth/login")
+                .contains("/api/users/me")
+                .contains("bearerAuth")
+                .contains("ApiError");
+    }
+
+    @Test
+    void swaggerUiIsServed() throws Exception {
+        assertThat(get("/swagger-ui/index.html", null).statusCode()).isEqualTo(200);
+    }
+
+    @Test
     void garbageTokenIsTreatedAsNotLoggedIn() throws Exception {
         assertThat(get("/api/users/me", "not-a-real-token").statusCode()).isEqualTo(401);
     }
