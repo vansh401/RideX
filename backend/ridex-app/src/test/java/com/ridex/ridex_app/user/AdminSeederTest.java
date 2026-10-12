@@ -24,7 +24,7 @@ class AdminSeederTest {
 
     @Test
     void createsAnActiveAdminWithAHashedPassword() {
-        seeder(" Admin@Example.com ", "a-long-admin-password").run(null);
+        seeder(" Admin@Example.com ", "a-long-admin-password1").run(null);
 
         ArgumentCaptor<User> saved = ArgumentCaptor.forClass(User.class);
         verify(userRepository).save(saved.capture());
@@ -32,15 +32,15 @@ class AdminSeederTest {
         assertThat(admin.getRole()).isEqualTo(Role.ADMIN);
         assertThat(admin.getStatus()).isEqualTo(UserStatus.ACTIVE);
         assertThat(admin.getEmail()).isEqualTo("admin@example.com");
-        assertThat(admin.getPasswordHash()).isNotEqualTo("a-long-admin-password");
-        assertThat(passwordEncoder.matches("a-long-admin-password", admin.getPasswordHash())).isTrue();
+        assertThat(admin.getPasswordHash()).isNotEqualTo("a-long-admin-password1");
+        assertThat(passwordEncoder.matches("a-long-admin-password1", admin.getPasswordHash())).isTrue();
     }
 
     @Test
     void doesNothingWithoutConfiguredCredentials() {
         seeder("", "").run(null);
         seeder("admin@example.com", "").run(null);
-        seeder("", "a-long-admin-password").run(null);
+        seeder("", "a-long-admin-password1").run(null);
 
         verify(userRepository, never()).save(any());
     }
@@ -49,7 +49,7 @@ class AdminSeederTest {
     void doesNothingWhenAnAdminAlreadyExists() {
         when(userRepository.existsByRole(Role.ADMIN)).thenReturn(true);
 
-        seeder("admin@example.com", "a-long-admin-password").run(null);
+        seeder("admin@example.com", "a-long-admin-password1").run(null);
 
         verify(userRepository, never()).save(any());
     }
@@ -75,7 +75,7 @@ class AdminSeederTest {
     void refusesToPromoteAnExistingAccount() {
         when(userRepository.existsByEmail("admin@example.com")).thenReturn(true);
 
-        assertThatThrownBy(() -> seeder("admin@example.com", "a-long-admin-password").run(null))
+        assertThatThrownBy(() -> seeder("admin@example.com", "a-long-admin-password1").run(null))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("refusing to promote");
         verify(userRepository, never()).save(any());
@@ -85,7 +85,7 @@ class AdminSeederTest {
     void refusesAPhoneNumberThatIsAlreadyTaken() {
         when(userRepository.existsByPhone("+910000000000")).thenReturn(true);
 
-        assertThatThrownBy(() -> seeder("admin@example.com", "a-long-admin-password").run(null))
+        assertThatThrownBy(() -> seeder("admin@example.com", "a-long-admin-password1").run(null))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("ADMIN_PHONE");
         verify(userRepository, never()).save(any());
