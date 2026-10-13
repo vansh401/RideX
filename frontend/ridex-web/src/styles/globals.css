@@ -1,0 +1,167 @@
+@import 'tailwindcss';
+
+/*
+ * RideX design tokens: the ONLY place raw colours, radii, shadows and timings are defined.
+ * Components use the Tailwind utilities generated from @theme below (bg-surface, text-fg,
+ * border-border, rounded-lg, shadow-raised ...). See docs/frontend-design-spec.md.
+ * The app is dark-only by design.
+ */
+
+:root {
+  color-scheme: dark;
+
+  /* Surfaces */
+  --bg-base: #08080a;
+  --bg-surface: #101012;
+  --bg-elevated: #17171a;
+  --bg-overlay: rgb(8 8 10 / 0.72);
+
+  /* Borders */
+  --border-subtle: rgb(255 255 255 / 0.08);
+  --border-strong: rgb(255 255 255 / 0.16);
+
+  /* Text (muted is >= 4.5:1 on surface) */
+  --text-primary: #f5f5f2;
+  --text-secondary: #b8b8b2;
+  --text-muted: #8f8f89;
+
+  /* Accent: warm gold */
+  --accent: #e8c547;
+  --accent-hover: #f0d369;
+  --accent-pressed: #d4b13a;
+  --accent-subtle: rgb(232 197 71 / 0.12);
+  --on-accent: #17140a;
+
+  /* Semantic (never the only signal: always paired with text or an icon) */
+  --success: #34d17b;
+  --warning: #f5a623;
+  --danger: #ff6b6b;
+  --info: #6aa8ff;
+
+  /* Motion */
+  --dur-fast: 120ms;
+  --dur-base: 200ms;
+  --dur-slow: 320ms;
+  --dur-page: 480ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+}
+
+@theme inline {
+  --font-sans: 'DM Sans Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  --color-canvas: var(--bg-base);
+  --color-surface: var(--bg-surface);
+  --color-elevated: var(--bg-elevated);
+  --color-overlay: var(--bg-overlay);
+  --color-border: var(--border-subtle);
+  --color-border-strong: var(--border-strong);
+  --color-fg: var(--text-primary);
+  --color-fg-secondary: var(--text-secondary);
+  --color-fg-muted: var(--text-muted);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-pressed: var(--accent-pressed);
+  --color-accent-subtle: var(--accent-subtle);
+  --color-on-accent: var(--on-accent);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-info: var(--info);
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+
+  /* Elevation: level 1 (surface) is border-only; 2 raised; 3 modal */
+  --shadow-raised: 0 8px 24px rgb(0 0 0 / 0.45), 0 0 0 1px var(--border-subtle);
+  --shadow-modal: 0 24px 64px rgb(0 0 0 / 0.6), 0 0 0 1px var(--border-strong);
+  /* Neumorphic pair: reserved for small tactile controls (toggles, segmented, icon buttons) */
+  --shadow-neu: 4px 4px 10px rgb(0 0 0 / 0.55), -2px -2px 8px rgb(255 255 255 / 0.035);
+  --animate-fade-in: fade-in var(--dur-base) var(--ease-standard);
+  --animate-slide-in-left: slide-in-left var(--dur-slow) var(--ease-emphasized);
+  --animate-pop-in: pop-in var(--dur-base) var(--ease-emphasized);
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes slide-in-left {
+    from { transform: translateX(-100%); }
+    to { transform: none; }
+  }
+  @keyframes pop-in {
+    from { opacity: 0; transform: scale(0.97); }
+    to { opacity: 1; transform: none; }
+  }
+  --shadow-neu-inset: inset 3px 3px 7px rgb(0 0 0 / 0.6), inset -2px -2px 6px rgb(255 255 255 / 0.03);
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background: var(--bg-base);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 1.5;
+    font-feature-settings: 'cv11', 'ss01';
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* One focus style for everything interactive */
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  ::selection {
+    background: var(--accent-subtle);
+    color: var(--text-primary);
+  }
+
+  /* Numbers line up in tables and KPI cards */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@layer components {
+  /* Small uppercase label above a section title */
+  .eyebrow {
+    font-size: 12px;
+    line-height: 16px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  /* Translucent panel for use over maps and the landing nav only */
+  .glass {
+    background: var(--bg-overlay);
+    backdrop-filter: blur(16px) saturate(140%);
+    -webkit-backdrop-filter: blur(16px) saturate(140%);
+    border: 1px solid var(--border-subtle);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
