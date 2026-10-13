@@ -27,3 +27,9 @@ const dateTime = new Intl.DateTimeFormat('en-IN', {
 export function formatDateTime(iso: string): string {
   return dateTime.format(new Date(iso))
 }
+
+const dateOnly = new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+
+export function formatDate(iso: string): string {
+  return dateOnly.format(new Date(iso))
+}

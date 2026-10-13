@@ -6,7 +6,7 @@ import { PageHeader } from '@/components/brand/PageHeader'
 import { StatCard } from '@/components/brand/StatCard'
 import { Alert } from '@/components/ui/alert'
 import { Skeleton } from '@/components/ui/skeleton'
-import { formatDateTime } from '@/lib/format'
+import { formatDate } from '@/lib/format'
 import { useProfile } from './useProfile'
 
 const COPY: Record<Role, { eyebrow: string; title: string; next: { icon: LucideIcon; title: string; text: string } }> = {
@@ -74,7 +74,7 @@ export function HomePage({ role }: { role: Role }) {
             <StatCard
               icon={CalendarDays}
               label="Member since"
-              value={formatDateTime(profile.createdAt).split(',').slice(0, 2).join(',')}
+              value={formatDate(profile.createdAt)}
             />
           </>
         )}
