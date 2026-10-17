@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.ridex.ridex_app.common.ConflictException;
 import com.ridex.ridex_app.common.ForbiddenException;
 import com.ridex.ridex_app.jwt.JwtService;
+import com.ridex.ridex_app.rider.RiderProfileService;
 import com.ridex.ridex_app.user.Role;
 import com.ridex.ridex_app.user.User;
 import com.ridex.ridex_app.user.UserRepository;
@@ -25,6 +26,7 @@ public class AuthService {
     private final JwtService jwtService;
     private final RefreshTokenService refreshTokenService;
     private final EmailVerificationService emailVerificationService;
+    private final RiderProfileService riderProfileService;
 
     // Hash of a throwaway password. Checked when the email is unknown so that
     // "unknown email" and "wrong password" take about the same time.
@@ -34,12 +36,14 @@ public class AuthService {
                        PasswordEncoder passwordEncoder,
                        JwtService jwtService,
                        RefreshTokenService refreshTokenService,
-                       EmailVerificationService emailVerificationService) {
+                       EmailVerificationService emailVerificationService,
+                       RiderProfileService riderProfileService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.refreshTokenService = refreshTokenService;
         this.emailVerificationService = emailVerificationService;
+        this.riderProfileService = riderProfileService;
         this.dummyPasswordHash = passwordEncoder.encode("dummy-password-for-timing");
     }
 
@@ -60,6 +64,9 @@ public class AuthService {
 
         User user = new User(request.fullName(), email, phone, passwordHash, role);
         User saved = userRepository.save(user);
+        if (saved.getRole() == Role.RIDER) {
+            riderProfileService.createFor(saved);   // same transaction: user and profile exist together
+        }
         emailVerificationService.issueFor(saved);   // the email goes out after this commits
         return saved;
     }

@@ -46,6 +46,8 @@ public class SecurityConfig {
                         // API docs. Disable them in production (springdoc.*.enabled=false)
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/riders/**").hasRole("RIDER")
+                        .requestMatchers("/api/drivers/**").hasRole("DRIVER")
                         .anyRequest().authenticated())
                 // Run our JWT filter before Spring's username/password filter position
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)

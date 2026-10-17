@@ -104,6 +104,23 @@ class SecurityRulesIntegrationTest {
     }
 
     @Test
+    void riderAreaIsOnlyForRiders() throws Exception {
+        assertThat(get("/api/riders/me", null).statusCode()).isEqualTo(401);
+        assertThat(get("/api/riders/me", tokenFor(Role.DRIVER)).statusCode()).isEqualTo(403);
+        assertThat(get("/api/riders/me", tokenFor(Role.ADMIN)).statusCode()).isEqualTo(403);
+        // This rider exists only in the token: "profile not found" proves the request reached the controller
+        assertThat(get("/api/riders/me", tokenFor(Role.RIDER)).statusCode()).isEqualTo(404);
+    }
+
+    @Test
+    void driverProfileAreaIsOnlyForDrivers() throws Exception {
+        assertThat(get("/api/drivers/me", null).statusCode()).isEqualTo(401);
+        assertThat(get("/api/drivers/me", tokenFor(Role.RIDER)).statusCode()).isEqualTo(403);
+        assertThat(get("/api/drivers/me", tokenFor(Role.ADMIN)).statusCode()).isEqualTo(403);
+        assertThat(get("/api/drivers/me", tokenFor(Role.DRIVER)).statusCode()).isEqualTo(404);
+    }
+
+    @Test
     void garbageTokenIsTreatedAsNotLoggedIn() throws Exception {
         assertThat(get("/api/users/me", "not-a-real-token").statusCode()).isEqualTo(401);
     }

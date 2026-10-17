@@ -36,3 +36,27 @@ export interface ApiErrorBody {
   path: string
   fieldErrors: Record<string, string>
 }
+
+export interface SavedPlace {
+  id: string
+  label: string
+  address: string
+  latitude: number
+  longitude: number
+}
+
+export interface RiderProfile {
+  id: string
+  emergencyContact: { name: string; phone: string } | null
+  savedPlaces: SavedPlace[]
+}
+
+export type ApprovalStatus = 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED'
+
+export interface DriverProfile {
+  id: string
+  licenseNumber: string
+  licenseExpiry: string
+  approvalStatus: ApprovalStatus
+  createdAt: string
+}
