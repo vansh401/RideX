@@ -1,5 +1,5 @@
 import path from 'node:path'
-import { defineConfig } from 'vite'
+import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
@@ -14,6 +14,11 @@ export default defineConfig({
   // server re-bundling mid-session (which shows up as a blank page and "Outdated Optimize Dep").
   optimizeDeps: {
     include: ['react-hook-form', 'zod', '@hookform/resolvers/zod', 'sonner', 'radix-ui', 'lucide-react'],
+  },
+  test: {
+    environment: 'jsdom',
+    setupFiles: ['./src/test/setup.ts'],
+    css: false,
   },
   server: {
     proxy: {

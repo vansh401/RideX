@@ -32,7 +32,9 @@ public class SecurityConfig {
         http
                 // No cookies/sessions: tokens in the Authorization header, so CSRF protection is not needed
                 .csrf(csrf -> csrf.disable())
-                // Reuse the CORS rules from CorsConfig (WebMvcConfigurer)
+                // No cross-origin access is configured on purpose: the browser talks to ONE origin
+                // (the Vite dev proxy today, the gateway/ingress later), so CORS is not needed.
+                // With no CorsConfigurationSource bean this leaves cross-origin requests blocked.
                 .cors(Customizer.withDefaults())
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
