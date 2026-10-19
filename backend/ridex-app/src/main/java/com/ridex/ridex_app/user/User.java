@@ -73,6 +73,14 @@ public class User {
         this.status = UserStatus.SUSPENDED;
     }
 
+    /** Lifts a suspension. Deliberately only for suspended accounts: it must never be a way around e-mail verification. */
+    public void reinstate() {
+        if (this.status != UserStatus.SUSPENDED) {
+            throw new com.ridex.ridex_app.common.ConflictException("Only a suspended account can be reinstated");
+        }
+        this.status = UserStatus.ACTIVE;
+    }
+
     /** Takes an already-hashed password; hashing is the caller's job. */
     public void changePasswordHash(String newPasswordHash) {
         this.passwordHash = newPasswordHash;

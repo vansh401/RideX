@@ -3,8 +3,9 @@ package com.ridex.ridex_app.driver;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import java.lang.reflect.Field;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 
@@ -15,6 +16,7 @@ import com.ridex.ridex_app.user.User;
 class DriverProfileTest {
 
     private final User user = new User("Ravi Kumar", "ravi@example.com", "+919812345678", "hash", Role.DRIVER);
+    private final UUID adminId = UUID.randomUUID();
 
     private DriverProfile pending() {
         return new DriverProfile(user, "DL-0420110012345", LocalDate.now().plusYears(2));
@@ -26,7 +28,30 @@ class DriverProfileTest {
     }
 
     @Test
-    void licenceCanBeCorrectedWhileThePendingReviewIsOpen() {
+    void approvalRecordsWhoDecidedAndWhen() {
+        DriverProfile profile = pending();
+        Instant now = Instant.now();
+
+        profile.approve(adminId, now);
+
+        assertThat(profile.getApprovalStatus()).isEqualTo(ApprovalStatus.APPROVED);
+        assertThat(profile.isApproved()).isTrue();
+        assertThat(profile.getReviewedBy()).isEqualTo(adminId);
+        assertThat(profile.getReviewedAt()).isEqualTo(now);
+    }
+
+    @Test
+    void rejectionKeepsTheReason() {
+        DriverProfile profile = pending();
+
+        profile.reject(adminId, "Licence photo unreadable", Instant.now());
+
+        assertThat(profile.getApprovalStatus()).isEqualTo(ApprovalStatus.REJECTED);
+        assertThat(profile.getRejectionReason()).isEqualTo("Licence photo unreadable");
+    }
+
+    @Test
+    void licenceCanBeEditedWhilePending() {
         DriverProfile profile = pending();
         LocalDate newExpiry = LocalDate.now().plusYears(3);
 
@@ -34,20 +59,39 @@ class DriverProfileTest {
 
         assertThat(profile.getLicenseNumber()).isEqualTo("DL-9999999999999");
         assertThat(profile.getLicenseExpiry()).isEqualTo(newExpiry);
+        assertThat(profile.getApprovalStatus()).isEqualTo(ApprovalStatus.PENDING_APPROVAL);
     }
 
     @Test
-    void licenceCannotBeChangedAfterTheReviewHasDecided() throws Exception {
-        for (ApprovalStatus decided : new ApprovalStatus[] {ApprovalStatus.APPROVED, ApprovalStatus.REJECTED}) {
-            DriverProfile profile = pending();
-            // Approve/reject arrive in step 3.3; set the state directly for now
-            Field status = DriverProfile.class.getDeclaredField("approvalStatus");
-            status.setAccessible(true);
-            status.set(profile, decided);
+    void correctingARejectedProfileResubmitsItAndClearsTheOldDecision() {
+        DriverProfile profile = pending();
+        profile.reject(adminId, "Wrong number", Instant.now());
 
-            assertThatThrownBy(() -> profile.changeLicence("DL-1234567", LocalDate.now().plusYears(1)))
-                    .isInstanceOf(ConflictException.class)
-                    .hasMessageContaining(decided.name());
-        }
+        profile.changeLicence("DL-9999999999999", LocalDate.now().plusYears(3));
+
+        assertThat(profile.getApprovalStatus()).isEqualTo(ApprovalStatus.PENDING_APPROVAL);
+        assertThat(profile.getRejectionReason()).isNull();
+        assertThat(profile.getReviewedBy()).isNull();
+        assertThat(profile.getReviewedAt()).isNull();
+    }
+
+    @Test
+    void anApprovedProfileIsLocked() {
+        DriverProfile profile = pending();
+        profile.approve(adminId, Instant.now());
+
+        assertThatThrownBy(() -> profile.approve(adminId, Instant.now())).isInstanceOf(ConflictException.class);
+        assertThatThrownBy(() -> profile.reject(adminId, "x", Instant.now())).isInstanceOf(ConflictException.class);
+        assertThatThrownBy(() -> profile.changeLicence("DL-1", LocalDate.now().plusYears(1)))
+                .isInstanceOf(ConflictException.class);
+    }
+
+    @Test
+    void aRejectedProfileCannotBeApprovedWithoutResubmitting() {
+        DriverProfile profile = pending();
+        profile.reject(adminId, "No", Instant.now());
+
+        assertThatThrownBy(() -> profile.approve(adminId, Instant.now())).isInstanceOf(ConflictException.class);
+        assertThatThrownBy(() -> profile.reject(adminId, "again", Instant.now())).isInstanceOf(ConflictException.class);
     }
 }

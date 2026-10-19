@@ -20,11 +20,22 @@ const VerifyEmailPage = lazy(() =>
   import('@/features/auth/VerifyEmailPage').then((m) => ({ default: m.VerifyEmailPage })),
 )
 const AppShell = lazy(() => import('@/layouts/AppShell').then((m) => ({ default: m.AppShell })))
-const HomePage = lazy(() => import('@/features/app/HomePage').then((m) => ({ default: m.HomePage })))
 const ProfilePage = lazy(() => import('@/features/app/ProfilePage').then((m) => ({ default: m.ProfilePage })))
 const DashboardRedirect = lazy(() =>
   import('@/features/app/DashboardRedirect').then((m) => ({ default: m.DashboardRedirect })),
 )
+const RiderHome = lazy(() => import('@/features/rider/RiderHome').then((m) => ({ default: m.RiderHome })))
+const BookRidePage = lazy(() => import('@/features/rider/BookRidePage').then((m) => ({ default: m.BookRidePage })))
+const RideDetailPage = lazy(() => import('@/features/rides/RideDetailPage').then((m) => ({ default: m.RideDetailPage })))
+const RideHistoryPage = lazy(() => import('@/features/rides/RideHistoryPage').then((m) => ({ default: m.RideHistoryPage })))
+const DriverDashboard = lazy(() => import('@/features/driver/DriverDashboard').then((m) => ({ default: m.DriverDashboard })))
+const DocumentsPage = lazy(() => import('@/features/driver/DocumentsPage').then((m) => ({ default: m.DocumentsPage })))
+const VehiclesPage = lazy(() => import('@/features/driver/VehiclesPage').then((m) => ({ default: m.VehiclesPage })))
+const AdminOverview = lazy(() => import('@/features/admin/AdminOverview').then((m) => ({ default: m.AdminOverview })))
+const AdminDriversPage = lazy(() => import('@/features/admin/AdminDriversPage').then((m) => ({ default: m.AdminDriversPage })))
+const AdminDriverDetailPage = lazy(() => import('@/features/admin/AdminDriversPage').then((m) => ({ default: m.AdminDriverDetailPage })))
+const AdminUsersPage = lazy(() => import('@/features/admin/AdminUsersPage').then((m) => ({ default: m.AdminUsersPage })))
+const AdminVehiclesPage = lazy(() => import('@/features/admin/AdminVehiclesPage').then((m) => ({ default: m.AdminVehiclesPage })))
 const ForbiddenPage = lazy(() => import('@/features/app/StatusPages').then((m) => ({ default: m.ForbiddenPage })))
 
 function App() {
@@ -57,15 +68,26 @@ function App() {
             <Route path="/dashboard" element={<DashboardRedirect />} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/forbidden" element={<ForbiddenPage />} />
+            <Route path="/rides/:rideId" element={<RideDetailPage />} />
 
             <Route element={<ProtectedRoute roles={['RIDER']} />}>
-              <Route path="/rider" element={<HomePage role="RIDER" />} />
+              <Route path="/rider" element={<RiderHome />} />
+              <Route path="/rider/book" element={<BookRidePage />} />
+              <Route path="/rider/rides" element={<RideHistoryPage eyebrow="Rider" title="My rides" />} />
             </Route>
             <Route element={<ProtectedRoute roles={['DRIVER']} />}>
-              <Route path="/driver" element={<HomePage role="DRIVER" />} />
+              <Route path="/driver" element={<DriverDashboard />} />
+              <Route path="/driver/documents" element={<DocumentsPage />} />
+              <Route path="/driver/vehicles" element={<VehiclesPage />} />
+              <Route path="/driver/history" element={<RideHistoryPage eyebrow="Driver" title="Ride history" />} />
             </Route>
             <Route element={<ProtectedRoute roles={['ADMIN']} />}>
-              <Route path="/admin" element={<HomePage role="ADMIN" />} />
+              <Route path="/admin" element={<AdminOverview />} />
+              <Route path="/admin/drivers" element={<AdminDriversPage />} />
+              <Route path="/admin/drivers/:driverId" element={<AdminDriverDetailPage />} />
+              <Route path="/admin/users" element={<AdminUsersPage />} />
+              <Route path="/admin/vehicles" element={<AdminVehiclesPage />} />
+              <Route path="/admin/rides" element={<RideHistoryPage path="/api/admin/rides" eyebrow="Admin" title="All rides" />} />
             </Route>
           </Route>
         </Route>

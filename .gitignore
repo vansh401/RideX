@@ -18,3 +18,5 @@ dist/
 *.iml
 .DS_Store
 Thumbs.db
+# Uploaded driver documents (development storage)
+data/

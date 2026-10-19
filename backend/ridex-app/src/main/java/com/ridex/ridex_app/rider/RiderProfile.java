@@ -55,6 +55,13 @@ public class RiderProfile {
     @OrderBy("createdAt ASC")
     private List<SavedPlace> savedPlaces = new ArrayList<>();
 
+    // Running totals of the stars drivers gave this rider
+    @Column(name = "rating_sum", nullable = false, insertable = false, updatable = false)
+    private int ratingSum;
+
+    @Column(name = "rating_count", nullable = false, insertable = false, updatable = false)
+    private int ratingCount;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -115,6 +122,14 @@ public class RiderProfile {
     public String getEmergencyContactName() { return emergencyContactName; }
     public String getEmergencyContactPhone() { return emergencyContactPhone; }
     public List<SavedPlace> getSavedPlaces() { return List.copyOf(savedPlaces); }
+    public int getRatingCount() { return ratingCount; }
+
+    /** Average stars, or null before the first rating. */
+    public BigDecimal getRatingAverage() {
+        return ratingCount == 0 ? null
+                : BigDecimal.valueOf(ratingSum).divide(BigDecimal.valueOf(ratingCount), 2, java.math.RoundingMode.HALF_UP);
+    }
+
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
 }

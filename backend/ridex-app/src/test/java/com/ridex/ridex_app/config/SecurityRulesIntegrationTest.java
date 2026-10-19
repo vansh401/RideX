@@ -10,14 +10,14 @@ import java.net.http.HttpResponse;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.test.context.SpringBootTest;
 
 import com.ridex.ridex_app.jwt.JwtService;
+import com.ridex.ridex_app.support.AbstractIntegrationTest;
 import com.ridex.ridex_app.user.Role;
 import com.ridex.ridex_app.user.User;
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-class SecurityRulesIntegrationTest {
+/** The general rules: what is public, what needs a login, how bad tokens are treated. */
+class SecurityRulesIntegrationTest extends AbstractIntegrationTest {
 
     @Value("${local.server.port}")
     private int port;
@@ -74,7 +74,6 @@ class SecurityRulesIntegrationTest {
 
     @Test
     void emailVerificationEndpointsArePublic() throws Exception {
-        // Invalid bodies: validation (400) proves security let the request through
         assertThat(postJson("/api/auth/verify-email", "{}").statusCode()).isEqualTo(400);
         assertThat(postJson("/api/auth/resend-verification", "{}").statusCode()).isEqualTo(400);
     }
@@ -94,6 +93,8 @@ class SecurityRulesIntegrationTest {
                 .contains("RideX API")
                 .contains("/api/auth/login")
                 .contains("/api/users/me")
+                .contains("/api/rides")
+                .contains("/api/admin/drivers")
                 .contains("bearerAuth")
                 .contains("ApiError");
     }
@@ -101,23 +102,6 @@ class SecurityRulesIntegrationTest {
     @Test
     void swaggerUiIsServed() throws Exception {
         assertThat(get("/swagger-ui/index.html", null).statusCode()).isEqualTo(200);
-    }
-
-    @Test
-    void riderAreaIsOnlyForRiders() throws Exception {
-        assertThat(get("/api/riders/me", null).statusCode()).isEqualTo(401);
-        assertThat(get("/api/riders/me", tokenFor(Role.DRIVER)).statusCode()).isEqualTo(403);
-        assertThat(get("/api/riders/me", tokenFor(Role.ADMIN)).statusCode()).isEqualTo(403);
-        // This rider exists only in the token: "profile not found" proves the request reached the controller
-        assertThat(get("/api/riders/me", tokenFor(Role.RIDER)).statusCode()).isEqualTo(404);
-    }
-
-    @Test
-    void driverProfileAreaIsOnlyForDrivers() throws Exception {
-        assertThat(get("/api/drivers/me", null).statusCode()).isEqualTo(401);
-        assertThat(get("/api/drivers/me", tokenFor(Role.RIDER)).statusCode()).isEqualTo(403);
-        assertThat(get("/api/drivers/me", tokenFor(Role.ADMIN)).statusCode()).isEqualTo(403);
-        assertThat(get("/api/drivers/me", tokenFor(Role.DRIVER)).statusCode()).isEqualTo(404);
     }
 
     @Test
@@ -130,28 +114,5 @@ class SecurityRulesIntegrationTest {
         HttpResponse<String> response = get("/api/users/me", tokenFor(Role.RIDER));
 
         assertThat(response.statusCode()).isEqualTo(404);
-    }
-
-    @Test
-    void riderCannotEnterTheAdminArea() throws Exception {
-        HttpResponse<String> response = get("/api/admin/ping", tokenFor(Role.RIDER));
-
-        assertThat(response.statusCode()).isEqualTo(403);
-        assertThat(response.body()).contains("\"status\":403");
-    }
-
-    @Test
-    void adminCanEnterTheAdminArea() throws Exception {
-        assertThat(get("/api/admin/ping", tokenFor(Role.ADMIN)).statusCode()).isEqualTo(200);
-    }
-
-    @Test
-    void riderCannotCallDriverEndpointProtectedByMethodSecurity() throws Exception {
-        assertThat(get("/api/driver/ping", tokenFor(Role.RIDER)).statusCode()).isEqualTo(403);
-    }
-
-    @Test
-    void driverCanCallDriverEndpoint() throws Exception {
-        assertThat(get("/api/driver/ping", tokenFor(Role.DRIVER)).statusCode()).isEqualTo(200);
     }
 }

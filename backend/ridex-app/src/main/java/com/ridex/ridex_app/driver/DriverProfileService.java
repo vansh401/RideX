@@ -54,6 +54,18 @@ public class DriverProfileService {
         return DriverProfileResponse.from(profile);
     }
 
+    /** The id of the caller's driver profile; 404 if they have not created one. */
+    @Transactional(readOnly = true)
+    public UUID requireProfileId(UUID userId) {
+        return load(userId).getId();
+    }
+
+    /** Records one more star rating given to this driver (called by the rating module). */
+    @Transactional
+    public void recordRating(UUID driverProfileId, int stars) {
+        repository.addRating(driverProfileId, stars);
+    }
+
     private DriverProfile load(UUID userId) {
         return repository.findByUserId(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Driver profile not found"));

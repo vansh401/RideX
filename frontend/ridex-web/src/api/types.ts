@@ -58,5 +58,185 @@ export interface DriverProfile {
   licenseNumber: string
   licenseExpiry: string
   approvalStatus: ApprovalStatus
+  rejectionReason: string | null
   createdAt: string
+}
+
+// ---------------------------------------------------------------------------------------------
+// Phase 3: vehicles, documents, availability, rides, ratings, admin
+
+export type VehicleCategory = 'BIKE' | 'AUTO' | 'CAB'
+
+export interface LatLng {
+  latitude: number
+  longitude: number
+}
+
+export interface PageResponse<T> {
+  content: T[]
+  page: number
+  size: number
+  totalElements: number
+  totalPages: number
+}
+
+export interface Vehicle {
+  id: string
+  category: VehicleCategory
+  make: string
+  model: string
+  color: string
+  registrationNumber: string
+  manufactureYear: number
+  seats: number
+  active: boolean
+}
+
+export type DocumentType = 'DRIVING_LICENSE' | 'VEHICLE_REGISTRATION' | 'INSURANCE' | 'ID_PROOF'
+
+export interface DriverDocument {
+  id: string
+  type: DocumentType
+  originalFilename: string
+  contentType: string
+  sizeBytes: number
+  uploadedAt: string
+}
+
+export interface Availability {
+  online: boolean
+  approvalStatus: ApprovalStatus
+  hasActiveVehicle: boolean
+  lastLatitude: number | null
+  lastLongitude: number | null
+  lastSeenAt: string | null
+}
+
+export interface FareEstimate {
+  category: VehicleCategory
+  distanceKm: number
+  durationMinutes: number
+  baseFare: number
+  distanceFare: number
+  timeFare: number
+  minimumFareApplied: boolean
+  surgeMultiplier: number
+  subtotal: number
+  tax: number
+  total: number
+  currency: string
+}
+
+export type RideStatus =
+  | 'REQUESTED'
+  | 'SEARCHING_DRIVER'
+  | 'DRIVER_ASSIGNED'
+  | 'DRIVER_ACCEPTED'
+  | 'DRIVER_ARRIVED'
+  | 'RIDE_STARTED'
+  | 'RIDE_COMPLETED'
+  | 'CANCELLED'
+
+export type ActorRole = 'RIDER' | 'DRIVER' | 'ADMIN' | 'SYSTEM'
+
+export interface Place {
+  address: string
+  latitude: number
+  longitude: number
+}
+
+export interface Ride {
+  id: string
+  status: RideStatus
+  category: VehicleCategory
+  pickup: Place
+  dropoff: Place
+  distanceKm: number
+  durationMinutes: number
+  fare: {
+    baseFare: number
+    distanceFare: number
+    timeFare: number
+    surgeMultiplier: number
+    subtotal: number
+    tax: number
+    total: number
+    currency: string
+  }
+  rider: { userId: string; fullName: string; phone: string | null }
+  driver: { userId: string; fullName: string; phone: string | null; ratingAverage: number | null; ratingCount: number } | null
+  vehicle: { category: VehicleCategory; make: string; model: string; color: string; registrationNumber: string; seats: number } | null
+  requestedAt: string
+  offerExpiresAt: string | null
+  acceptedAt: string | null
+  arrivedAt: string | null
+  startedAt: string | null
+  completedAt: string | null
+  cancelledAt: string | null
+  cancelledBy: ActorRole | null
+  cancelReason: string | null
+  myRating: number | null
+}
+
+export interface TimelineEntry {
+  from: RideStatus | null
+  to: RideStatus
+  actorRole: ActorRole
+  note: string | null
+  at: string
+}
+
+export interface AdminDriverSummary {
+  id: string
+  userId: string
+  fullName: string
+  email: string
+  phone: string
+  licenseNumber: string
+  licenseExpiry: string
+  approvalStatus: ApprovalStatus
+  createdAt: string
+}
+
+export interface AdminDriverDetail extends AdminDriverSummary {
+  rejectionReason: string | null
+  reviewedBy: string | null
+  reviewedAt: string | null
+  documents: DriverDocument[]
+  vehicles: Vehicle[]
+}
+
+export interface AdminUser {
+  id: string
+  fullName: string
+  email: string
+  phone: string
+  role: Role
+  status: 'PENDING_VERIFICATION' | 'ACTIVE' | 'SUSPENDED'
+  createdAt: string
+}
+
+export interface AdminVehicle {
+  id: string
+  driverProfileId: string
+  driverName: string
+  driverEmail: string
+  driverStatus: ApprovalStatus
+  category: VehicleCategory
+  make: string
+  model: string
+  color: string
+  registrationNumber: string
+  active: boolean
+}
+
+export interface AdminStats {
+  usersByRole: Record<Role, number>
+  suspendedUsers: number
+  pendingDriverApplications: number
+  onlineDrivers: number
+  ridesByStatus: Record<RideStatus, number>
+  ridesInLast24Hours: number
+  completedRevenue: number
+  currency: string
 }

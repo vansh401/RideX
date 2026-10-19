@@ -3,6 +3,7 @@ package com.ridex.ridex_app.config;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -47,6 +48,16 @@ public class SecurityConfig {
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/riders/**").hasRole("RIDER")
+                        .requestMatchers("/api/fares/**").hasRole("RIDER")
+                        // Ride endpoints: roles are enforced HERE as well as with @PreAuthorize. Method
+                        // security runs only after the request body has been validated, so without these
+                        // URL rules a caller with the wrong role would see validation errors instead of 403.
+                        .requestMatchers(HttpMethod.POST, "/api/rides").hasRole("RIDER")
+                        .requestMatchers(HttpMethod.POST, "/api/rides/*/accept", "/api/rides/*/reject",
+                                "/api/rides/*/arrived", "/api/rides/*/start", "/api/rides/*/complete").hasRole("DRIVER")
+                        .requestMatchers("/api/rides/*/cancel", "/api/rides/*/ratings").hasAnyRole("RIDER", "DRIVER")
+                        .requestMatchers(HttpMethod.GET, "/api/rides", "/api/rides/current").hasAnyRole("RIDER", "DRIVER")
+                        .requestMatchers(HttpMethod.GET, "/api/rides/*", "/api/rides/*/timeline").hasAnyRole("RIDER", "DRIVER", "ADMIN")
                         .requestMatchers("/api/drivers/**").hasRole("DRIVER")
                         .anyRequest().authenticated())
                 // Run our JWT filter before Spring's username/password filter position

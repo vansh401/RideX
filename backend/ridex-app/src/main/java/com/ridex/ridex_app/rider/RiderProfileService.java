@@ -58,6 +58,12 @@ public class RiderProfileService {
         load(userId).removePlace(placeId);
     }
 
+    /** Records one more star rating given to this rider (called by the rating module). */
+    @Transactional
+    public void recordRating(UUID riderUserId, int stars) {
+        repository.addRating(riderUserId, stars);
+    }
+
     private RiderProfile load(UUID userId) {
         return repository.findByUserId(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Rider profile not found"));

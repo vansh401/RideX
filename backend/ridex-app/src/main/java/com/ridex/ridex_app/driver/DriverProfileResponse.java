@@ -9,11 +9,12 @@ public record DriverProfileResponse(
         String licenseNumber,
         LocalDate licenseExpiry,
         ApprovalStatus approvalStatus,
+        String rejectionReason,
         Instant createdAt
 ) {
     public static DriverProfileResponse from(DriverProfile profile) {
         return new DriverProfileResponse(
                 profile.getId(), profile.getLicenseNumber(), profile.getLicenseExpiry(),
-                profile.getApprovalStatus(), profile.getCreatedAt());
+                profile.getApprovalStatus(), profile.getRejectionReason(), profile.getCreatedAt());
     }
 }
