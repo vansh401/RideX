@@ -5,9 +5,11 @@ import java.time.Instant;
 import java.util.EnumMap;
 import java.util.Map;
 
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.ridex.ridex_app.config.CacheConfig;
 import com.ridex.ridex_app.driver.ApprovalStatus;
 import com.ridex.ridex_app.driver.DriverProfileRepository;
 import com.ridex.ridex_app.ride.RideRepository;
@@ -36,6 +38,11 @@ public class AdminStatsService {
         this.rideRepository = rideRepository;
     }
 
+    /**
+     * Cached for a few seconds: the dashboard polls it and nobody needs the exact count to the second.
+     * There is no eviction on purpose; the short TTL is the whole invalidation strategy here.
+     */
+    @Cacheable(cacheNames = CacheConfig.ADMIN_STATS, key = "'all'")
     @Transactional(readOnly = true)
     public AdminStats stats() {
         Map<Role, Long> usersByRole = new EnumMap<>(Role.class);

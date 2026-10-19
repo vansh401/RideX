@@ -39,6 +39,9 @@ public class JwtService {
                 .issuedAt(now)
                 .expiresAt(expiresAt)
                 .id(UUID.randomUUID().toString())
+                // The standard iat claim only has whole-second precision. Revocation compares against a
+                // millisecond cutoff, so a token created in the same second as a suspension is still judged correctly.
+                .claim("iat_ms", now.toEpochMilli())
                 .claim("role", user.getRole().name())
                 .build();
 

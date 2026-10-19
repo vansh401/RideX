@@ -28,7 +28,7 @@ public class VerificationEmailListener {
     public void onVerificationEmailRequested(VerificationEmailRequested event) {
         String url = frontendBaseUrl + "/verify-email?token=" + event.rawToken();
         try {
-            emailSender.sendVerificationEmail(event.toEmail(), event.fullName(), url);
+            emailSender.sendVerificationEmail(event.toEmail(), event.fullName(), url, event.otp());
         } catch (RuntimeException ex) {
             // The account exists; the user can ask for another link via /resend-verification
             log.error("Could not send verification email to {}", event.toEmail(), ex);

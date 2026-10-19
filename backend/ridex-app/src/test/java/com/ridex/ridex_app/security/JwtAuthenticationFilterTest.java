@@ -35,8 +35,9 @@ class JwtAuthenticationFilterTest {
     private final JwtEncoder encoder = new NimbusJwtEncoder(new ImmutableSecret<>(key));
     private final JwtDecoder decoder =
             NimbusJwtDecoder.withSecretKey(key).macAlgorithm(MacAlgorithm.HS256).build();
+    private final AccessTokenRevocations revocations = org.mockito.Mockito.mock(AccessTokenRevocations.class);
     private final JwtService jwtService = new JwtService(encoder, "ridex", 15);
-    private final JwtAuthenticationFilter filter = new JwtAuthenticationFilter(decoder);
+    private final JwtAuthenticationFilter filter = new JwtAuthenticationFilter(decoder, revocations);
 
     @AfterEach
     void clearSecurityContext() {

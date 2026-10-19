@@ -35,6 +35,13 @@ export const resetSchema = z
     path: ['confirm'],
   })
 
+// The 6-digit code from the verification email (backend: VerifyOtpRequest)
+export const otpSchema = z.object({
+  email: z.email('Enter a valid email address'),
+  code: z.string().regex(/^[0-9]{6}$/, 'Enter the 6 digits from the email'),
+})
+
+export type OtpValues = z.infer<typeof otpSchema>
 export type LoginValues = z.infer<typeof loginSchema>
 export type RegisterValues = z.infer<typeof registerSchema>
 export type ForgotValues = z.infer<typeof forgotSchema>

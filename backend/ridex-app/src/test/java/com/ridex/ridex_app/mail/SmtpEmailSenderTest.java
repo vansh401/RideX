@@ -17,7 +17,7 @@ class SmtpEmailSenderTest {
     @Test
     void sendsTheVerificationLinkToTheUser() {
         sender.sendVerificationEmail("asha@example.com", "Asha Rao",
-                "http://localhost:5173/verify-email?token=abc");
+                "http://localhost:5173/verify-email?token=abc", "123456");
 
         ArgumentCaptor<SimpleMailMessage> sent = ArgumentCaptor.forClass(SimpleMailMessage.class);
         verify(mailSender).send(sent.capture());
@@ -27,7 +27,8 @@ class SmtpEmailSenderTest {
         assertThat(message.getSubject()).isEqualTo("Verify your RideX account");
         assertThat(message.getText())
                 .contains("Asha Rao")
-                .contains("http://localhost:5173/verify-email?token=abc");
+                .contains("http://localhost:5173/verify-email?token=abc")
+                .contains("123456");
     }
 
     @Test

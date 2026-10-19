@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.ridex.ridex_app.security.AccessTokenRevocations;
 import com.ridex.ridex_app.security.OpaqueTokens;
 
 @Service
@@ -18,11 +19,14 @@ public class RefreshTokenService {
     private static final Logger log = LoggerFactory.getLogger(RefreshTokenService.class);
 
     private final RefreshTokenRepository repository;
+    private final AccessTokenRevocations accessTokenRevocations;
     private final Duration ttl;
 
     public RefreshTokenService(RefreshTokenRepository repository,
+                               AccessTokenRevocations accessTokenRevocations,
                                @Value("${ridex.jwt.refresh-token-ttl-days}") long ttlDays) {
         this.repository = repository;
+        this.accessTokenRevocations = accessTokenRevocations;
         this.ttl = Duration.ofDays(ttlDays);
     }
 
@@ -75,6 +79,9 @@ public class RefreshTokenService {
     @Transactional
     public void revokeAllForUser(UUID userId) {
         repository.revokeAllForUser(userId, Instant.now());
+        // Refresh tokens are in the database, but access tokens are stateless: cancel them in Redis too,
+        // otherwise this user keeps working for up to 15 more minutes (the Step 2.5 gap).
+        accessTokenRevocations.revokeAllFor(userId);
     }
 
     private IssuedToken create(UUID userId, UUID familyId, Instant now) {

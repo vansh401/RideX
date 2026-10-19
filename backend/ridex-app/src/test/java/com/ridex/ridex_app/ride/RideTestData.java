@@ -17,8 +17,14 @@ import com.ridex.ridex_app.user.User;
 /** Ready-made objects for ride tests. Each call builds fresh ones. */
 final class RideTestData {
 
-    // The real current time: services read the system clock, so a fixed date would make every offer look expired
-    static final Instant NOW = Instant.now();
+    // The real current time: services read the system clock, so a fixed date would make every offer look expired.
+    // It is taken AGAIN each time test data is created. A value fixed once when the class loads would be minutes
+    // old by the time a late test runs in a long test session, and its 30-second offers would already be expired.
+    static Instant NOW = Instant.now();
+
+    RideTestData() {
+        NOW = Instant.now();
+    }
 
     final User rider = new User("Asha Rao", "asha@example.com", "+919876543210", "hash", Role.RIDER);
     final User driverUser = new User("Ravi Kumar", "ravi@example.com", "+919812345678", "hash", Role.DRIVER);

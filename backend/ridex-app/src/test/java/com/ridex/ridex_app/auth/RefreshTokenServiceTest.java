@@ -19,7 +19,9 @@ import org.mockito.ArgumentCaptor;
 class RefreshTokenServiceTest {
 
     private final RefreshTokenRepository repository = mock(RefreshTokenRepository.class);
-    private final RefreshTokenService service = new RefreshTokenService(repository, 7);
+    private final com.ridex.ridex_app.security.AccessTokenRevocations accessTokens =
+            mock(com.ridex.ridex_app.security.AccessTokenRevocations.class);
+    private final RefreshTokenService service = new RefreshTokenService(repository, accessTokens, 7);
 
     private final UUID userId = UUID.randomUUID();
     private final UUID familyId = UUID.randomUUID();

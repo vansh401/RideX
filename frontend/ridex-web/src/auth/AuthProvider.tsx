@@ -42,7 +42,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       // Tell the server so the refresh token dies there too. Failure must not trap the user.
       if (refreshToken) {
-        await axios.post('/api/auth/logout', { refreshToken })
+        // The access token is sent too, so the server cancels it right away (Redis revocation)
+        // instead of letting it work until it expires.
+        const accessToken = tokenStorage.getAccessToken()
+        await axios.post(
+          '/api/auth/logout',
+          { refreshToken },
+          accessToken ? { headers: { Authorization: `Bearer ${accessToken}` } } : undefined,
+        )
       }
     } catch {
       // ignore: we still end the local session below

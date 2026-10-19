@@ -12,6 +12,10 @@ public record MatchingProperties(
         /** After this long without any driver accepting, the ride is cancelled (no driver found). */
         int searchTimeoutSeconds,
         /** A driver whose last location is older than this is treated as gone. */
-        int locationFreshnessSeconds
+        int locationFreshnessSeconds,
+        /** How many of the nearest drivers (from Redis) are tried, in order, for one ride. */
+        int candidateLimit,
+        /** Safety lease on the Redis lock taken while a driver is being assigned. */
+        int assignmentLockSeconds
 ) {
 }

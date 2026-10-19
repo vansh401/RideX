@@ -11,6 +11,10 @@ public record AvailabilityResponse(
         BigDecimal lastLongitude,
         Instant lastSeenAt
 ) {
+    public AvailabilityResponse withLastSeenAt(Instant seenAt) {
+        return new AvailabilityResponse(online, approvalStatus, hasActiveVehicle, lastLatitude, lastLongitude, seenAt);
+    }
+
     public static AvailabilityResponse of(DriverProfile profile, boolean hasActiveVehicle) {
         return new AvailabilityResponse(profile.isOnline(), profile.getApprovalStatus(), hasActiveVehicle,
                 profile.getLastLatitude(), profile.getLastLongitude(), profile.getLastSeenAt());

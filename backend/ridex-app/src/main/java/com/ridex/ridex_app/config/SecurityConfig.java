@@ -13,7 +13,11 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.servlet.HandlerExceptionResolver;
 
+import com.ridex.ridex_app.security.AccessTokenRevocations;
 import com.ridex.ridex_app.security.JwtAuthenticationFilter;
+import com.ridex.ridex_app.security.RateLimitFilter;
+import com.ridex.ridex_app.security.RateLimitProperties;
+import com.ridex.ridex_app.security.RateLimiter;
 
 @Configuration
 @EnableMethodSecurity
@@ -23,12 +27,16 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(
             HttpSecurity http,
             JwtDecoder jwtDecoder,
+            AccessTokenRevocations revocations,
+            RateLimiter rateLimiter,
+            RateLimitProperties rateLimitProperties,
             @Qualifier("handlerExceptionResolver") HandlerExceptionResolver exceptionResolver)
             throws Exception {
 
         // Created with "new" on purpose: if it were a @Component, Spring Boot would also
         // register it as a plain servlet filter and it would run twice.
-        JwtAuthenticationFilter jwtFilter = new JwtAuthenticationFilter(jwtDecoder);
+        JwtAuthenticationFilter jwtFilter = new JwtAuthenticationFilter(jwtDecoder, revocations);
+        RateLimitFilter rateLimitFilter = new RateLimitFilter(rateLimiter, rateLimitProperties, exceptionResolver);
 
         http
                 // No cookies/sessions: tokens in the Authorization header, so CSRF protection is not needed
@@ -62,6 +70,8 @@ public class SecurityConfig {
                         .anyRequest().authenticated())
                 // Run our JWT filter before Spring's username/password filter position
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
+                // First of all: turn away abusive traffic before any real work happens
+                .addFilterBefore(rateLimitFilter, JwtAuthenticationFilter.class)
                 // Send 401/403 through our GlobalExceptionHandler so the JSON format is consistent
                 .exceptionHandling(exceptions -> exceptions
                         .authenticationEntryPoint((request, response, ex) ->

@@ -16,6 +16,22 @@ services:
       timeout: 3s
       retries: 10
 
+  redis:
+    image: redis:7-alpine
+    container_name: ridex-redis
+    # --maxmemory with volatile-ttl: when memory is full, Redis may delete only keys that have an
+    # expiry (old tokens, counters). The driver GEO index has none, so it is never evicted.
+    command: ["redis-server", "--maxmemory", "128mb", "--maxmemory-policy", "volatile-ttl"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - ridex_redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   mailpit:
     image: axllent/mailpit:latest
     container_name: ridex-mailpit
@@ -25,3 +41,4 @@ services:
 
 volumes:
   ridex_pgdata:
+  ridex_redisdata:

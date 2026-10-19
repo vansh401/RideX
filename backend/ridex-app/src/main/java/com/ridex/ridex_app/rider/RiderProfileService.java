@@ -2,10 +2,13 @@ package com.ridex.ridex_app.rider;
 
 import java.util.UUID;
 
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.ridex.ridex_app.common.ResourceNotFoundException;
+import com.ridex.ridex_app.config.CacheConfig;
 import com.ridex.ridex_app.user.User;
 import com.ridex.ridex_app.user.UserService;
 
@@ -29,11 +32,14 @@ public class RiderProfileService {
     // Everything below returns DTOs built INSIDE the transaction. The places are lazy, so reading
     // them after the transaction ends (open-in-view is off) would throw LazyInitializationException.
 
+    /** Cached per rider; every method below that changes the profile evicts it (invalidation). */
+    @Cacheable(cacheNames = CacheConfig.RIDER_PROFILE, key = "#userId")
     @Transactional(readOnly = true)
     public RiderProfileResponse get(UUID userId) {
         return RiderProfileResponse.from(load(userId));
     }
 
+    @CacheEvict(cacheNames = CacheConfig.RIDER_PROFILE, key = "#userId")
     @Transactional
     public RiderProfileResponse updateEmergencyContact(UUID userId, UpdateRiderProfileRequest request) {
         userService.getActiveUser(userId);   // the token may be stale; the database decides
@@ -42,6 +48,7 @@ public class RiderProfileService {
         return RiderProfileResponse.from(profile);
     }
 
+    @CacheEvict(cacheNames = CacheConfig.RIDER_PROFILE, key = "#userId")
     @Transactional
     public SavedPlaceResponse addPlace(UUID userId, SavedPlaceRequest request) {
         userService.getActiveUser(userId);
@@ -52,6 +59,7 @@ public class RiderProfileService {
         return SavedPlaceResponse.from(place);
     }
 
+    @CacheEvict(cacheNames = CacheConfig.RIDER_PROFILE, key = "#userId")
     @Transactional
     public void removePlace(UUID userId, UUID placeId) {
         userService.getActiveUser(userId);

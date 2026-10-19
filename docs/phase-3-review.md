@@ -1,5 +1,7 @@
 # Phase 3 review: the core ride system
 
+> **Updated in Phase 4:** driver positions and the "who is nearby" search moved to Redis (see [phase-4-review.md](phase-4-review.md)). The PostgreSQL row lock and unique indexes described here are still the final authority.
+
 This document explains what Phase 3 added, why each decision was made, and how to defend it
 in an interview. Every claim below is backed by a test or a measurement in this repository.
 

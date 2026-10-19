@@ -66,13 +66,15 @@ class AdminApiIntegrationTest extends AbstractApiTest {
                 "{\"reason\":\"Reported for abuse\"}"));
         assertThat(suspended.<String>json("$.status")).isEqualTo("SUSPENDED");
 
-        // after: cannot log in, cannot refresh, and cannot change anything with the token they already hold
+        // after: cannot log in, cannot refresh, and the token they already hold is dead immediately
         Response login = api().post("/api/auth/login", null, loginBody(rider));
         assertThat(login.status()).isEqualTo(403);
         assertThat(login.<String>json("$.message")).contains("suspended");
         expect(401, api().post("/api/auth/refresh", null, "{\"refreshToken\":\"" + refreshToken + "\"}"));
-        expect(403, api().get("/api/users/me", riderToken));   // /me re-checks the account in the database
-        expect(403, api().post("/api/rides", riderToken, rideBody("CAB", 22.0, 76.0)));
+        // Since Phase 4 the token itself is cancelled in Redis, so the answer is 401 (not authenticated),
+        // not 403 (authenticated but not allowed). Before, the old token still got through the filter until it expired.
+        expect(401, api().get("/api/users/me", riderToken));
+        expect(401, api().post("/api/rides", riderToken, rideBody("CAB", 22.0, 76.0)));
 
         // reinstating restores access
         expect(200, api().post("/api/admin/users/" + rider.getId() + "/reinstate", admin.token(), null));

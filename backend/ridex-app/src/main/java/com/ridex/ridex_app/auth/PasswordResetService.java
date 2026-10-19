@@ -1,8 +1,8 @@
 package com.ridex.ridex_app.auth;
 
 import java.time.Duration;
-import java.time.Instant;
 import java.util.Locale;
+import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
@@ -10,30 +10,33 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.ridex.ridex_app.redis.RedisKeys;
+import com.ridex.ridex_app.redis.TokenStore;
 import com.ridex.ridex_app.security.OpaqueTokens;
 import com.ridex.ridex_app.user.User;
 import com.ridex.ridex_app.user.UserRepository;
 import com.ridex.ridex_app.user.UserStatus;
 
+/** Password reset links. The token lives in Redis and expires by itself; see EmailVerificationService. */
 @Service
 public class PasswordResetService {
 
     private static final String INVALID_LINK = "This password reset link is invalid or has expired";
 
-    private final PasswordResetTokenRepository tokenRepository;
+    private final TokenStore store;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final RefreshTokenService refreshTokenService;
     private final ApplicationEventPublisher eventPublisher;
     private final Duration ttl;
 
-    public PasswordResetService(PasswordResetTokenRepository tokenRepository,
+    public PasswordResetService(TokenStore store,
                                 UserRepository userRepository,
                                 PasswordEncoder passwordEncoder,
                                 RefreshTokenService refreshTokenService,
                                 ApplicationEventPublisher eventPublisher,
                                 @Value("${ridex.password-reset.token-ttl-minutes}") long ttlMinutes) {
-        this.tokenRepository = tokenRepository;
+        this.store = store;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.refreshTokenService = refreshTokenService;
@@ -55,36 +58,33 @@ public class PasswordResetService {
     }
 
     private void issueToken(User user) {
-        Instant now = Instant.now();
-        tokenRepository.invalidateAllForUser(user.getId(), now);   // only the newest link works
+        // only the newest link works
+        store.get(RedisKeys.resetUser(user.getId()))
+                .ifPresent(oldHash -> store.delete(RedisKeys.resetToken(oldHash)));
 
         String raw = OpaqueTokens.generate();
-        tokenRepository.save(new PasswordResetToken(
-                user.getId(), OpaqueTokens.sha256(raw), now.plus(ttl)));
+        String hash = OpaqueTokens.sha256(raw);
+        store.put(RedisKeys.resetToken(hash), user.getId().toString(), ttl);
+        store.put(RedisKeys.resetUser(user.getId()), hash, ttl);
         eventPublisher.publishEvent(
                 new PasswordResetEmailRequested(user.getEmail(), user.getFullName(), raw));
     }
 
     @Transactional
     public void resetPassword(String rawToken, String newPassword) {
-        Instant now = Instant.now();
-        PasswordResetToken token = tokenRepository
-                .findByTokenHashForUpdate(OpaqueTokens.sha256(rawToken))
+        // Atomic read-and-delete: the link works exactly once, even if clicked twice at the same instant
+        String userId = store.take(RedisKeys.resetToken(OpaqueTokens.sha256(rawToken)))
                 .orElseThrow(() -> new InvalidResetTokenException(INVALID_LINK));
 
-        if (token.isUsed() || token.isExpired(now)) {
-            throw new InvalidResetTokenException(INVALID_LINK);
-        }
-
-        User user = userRepository.findById(token.getUserId())
+        User user = userRepository.findById(UUID.fromString(userId))
                 .filter(found -> found.getStatus() == UserStatus.ACTIVE)
                 .orElseThrow(() -> new InvalidResetTokenException(INVALID_LINK));
 
         user.changePasswordHash(passwordEncoder.encode(newPassword));
-        token.markUsed(now);
-        tokenRepository.invalidateAllForUser(user.getId(), now);
+        store.delete(RedisKeys.resetUser(user.getId()));
 
-        // Whoever held the old password (or a stolen session) must not stay logged in
+        // Whoever held the old password (or a stolen session) must not stay logged in: this ends the
+        // refresh tokens AND, through Redis, the access tokens that are still within their 15 minutes
         refreshTokenService.revokeAllForUser(user.getId());
     }
 }

@@ -21,7 +21,7 @@ public class SmtpEmailSender implements EmailSender {
     }
 
     @Override
-    public void sendVerificationEmail(String toEmail, String fullName, String verifyUrl) {
+    public void sendVerificationEmail(String toEmail, String fullName, String verifyUrl, String otp) {
         SimpleMailMessage message = new SimpleMailMessage();
         message.setFrom(from);
         message.setTo(toEmail);
@@ -29,7 +29,8 @@ public class SmtpEmailSender implements EmailSender {
         message.setText("Hi " + fullName + ",\n\n"
                 + "Welcome to RideX! Please confirm your email address by opening this link:\n\n"
                 + verifyUrl + "\n\n"
-                + "The link works once and expires soon. If you did not create an account, "
+                + "Or enter this 6-digit code on the verification page: " + otp + "\n\n"
+                + "The link and the code work once and expire soon. If you did not create an account, "
                 + "you can ignore this email.\n");
         mailSender.send(message);
     }

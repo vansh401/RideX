@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { loginSchema, registerSchema, resetSchema } from './schemas'
+import { loginSchema, otpSchema, registerSchema, resetSchema } from './schemas'
 
 // These rules must stay in step with the backend (RegisterRequest / ResetPasswordRequest).
 
@@ -55,5 +55,15 @@ describe('loginSchema', () => {
   it('only asks for a valid email and some password (the server decides if it is right)', () => {
     expect(loginSchema.safeParse({ email: 'asha@example.com', password: 'x' }).success).toBe(true)
     expect(loginSchema.safeParse({ email: 'asha@example.com', password: '' }).success).toBe(false)
+  })
+})
+
+describe('otpSchema', () => {
+  it('accepts an email and a 6-digit code', () => {
+    expect(otpSchema.safeParse({ email: 'asha@example.com', code: '004217' }).success).toBe(true)
+  })
+
+  it.each(['12345', '1234567', '12ab56', '', ' 123456'])('rejects the code %j', (code) => {
+    expect(otpSchema.safeParse({ email: 'asha@example.com', code }).success).toBe(false)
   })
 })

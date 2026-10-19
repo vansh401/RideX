@@ -1,4 +1,4 @@
-# Auth API reference (Phase 2)
+# Auth API reference (Phase 2, updated in Phase 4)
 
 All endpoints are JSON. Public means no `Authorization` header is needed.
 Errors always use the shape in [api-conventions.md](api-conventions.md).
@@ -7,10 +7,11 @@ Interactive version: `/swagger-ui.html` (generated from the code, so it is the s
 | Method | Path | Auth | Success | Notable errors |
 |---|---|---|---|---|
 | POST | `/api/auth/register` | public | 201 | 400 validation, 409 email or phone taken |
-| POST | `/api/auth/login` | public | 200 | 400, 401 wrong email or password, 403 unverified or suspended |
+| POST | `/api/auth/login` | public | 200 | 400, 401 wrong email or password, 403 unverified or suspended, 429 too many failed attempts |
 | POST | `/api/auth/refresh` | public | 200 | 400, 401 invalid, expired or reused token |
-| POST | `/api/auth/logout` | public | 204 | 400 (always 204 for unknown tokens) |
+| POST | `/api/auth/logout` | public (send the access token too) | 204 | 400 (always 204 for unknown tokens) |
 | POST | `/api/auth/verify-email` | public | 204 | 400 invalid, used or expired link |
+| POST | `/api/auth/verify-otp` | public | 204 | 400 wrong, expired or used code (and too many guesses) |
 | POST | `/api/auth/resend-verification` | public | 202 | 400 (always 202 otherwise) |
 | POST | `/api/auth/forgot-password` | public | 202 | 400 (always 202 otherwise) |
 | POST | `/api/auth/reset-password` | public | 204 | 400 validation or invalid link |
@@ -49,12 +50,18 @@ Body `{ "refreshToken": "…" }`. Returns the same shape as login with a **new**
 stops working immediately; presenting it again revokes the whole session.
 
 ### `POST /api/auth/logout`
-Body `{ "refreshToken": "…" }`. Ends the whole session (all tokens of that login). An access token already
-issued stays valid until it expires (at most 15 minutes).
+Body `{ "refreshToken": "…" }`. Ends the whole session (all tokens of that login). If the request also carries
+the access token (`Authorization: Bearer …`), that token is cancelled immediately (Redis revocation, Phase 4);
+otherwise it would stay valid until it expires (at most 15 minutes).
 
 ### `POST /api/auth/verify-email`
 Body `{ "token": "…" }` (the value from the emailed link). Activates a pending account. Single use, valid for
 15 minutes. Verifying never un-suspends a suspended account.
+
+### `POST /api/auth/verify-otp`
+Body `{ "email": "…", "code": "123456" }` (the 6 digits from the verification email). Alternative to the link.
+The code lives in Redis for 10 minutes, works once, and allows 5 wrong guesses, after which even the right code
+is refused and a new one must be requested. An unknown email and a wrong code give the same `400`.
 
 ### `POST /api/auth/resend-verification`
 Body `{ "email": "…" }`. Always `202`. Sends a new link only if the account is pending; older links stop working.
@@ -88,3 +95,22 @@ Sample bodies live in `docs/api-samples/`. Example:
 ```powershell
 curl.exe -s -X POST -H "Content-Type: application/json" --data "@docs/api-samples/login-ok.json" http://localhost:8080/api/auth/login
 ```
+
+## Rate limiting (Phase 4)
+
+Every `/api/**` call is counted per client address in Redis. Beyond the limit the answer is `429 Too Many Requests`
+with a `Retry-After` header (seconds) and the usual JSON error body.
+
+| Scope | Default |
+|---|---|
+| register, forgot-password, resend-verification, verify-otp | 5 per hour |
+| every other `/api/auth/**` call | 30 per minute |
+| every other `/api/**` call | 600 per minute |
+| login: wrong passwords for one email from one address | 5, then locked for 15 minutes (even for the correct password) |
+
+All values are in `application.properties` (`ridex.rate-limit.*`).
+
+## Access tokens are cancellable (Phase 4)
+
+An access token is rejected with `401` right away (not after 15 minutes) when its user was suspended, had a
+password reset, or logged out with it. See [redis-concepts.md](redis-concepts.md) section 4.8.

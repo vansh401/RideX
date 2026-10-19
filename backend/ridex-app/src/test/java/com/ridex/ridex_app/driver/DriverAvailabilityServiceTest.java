@@ -25,8 +25,10 @@ class DriverAvailabilityServiceTest {
     private final DriverProfileRepository profileRepository = mock(DriverProfileRepository.class);
     private final VehicleRepository vehicleRepository = mock(VehicleRepository.class);
     private final UserService userService = mock(UserService.class);
+    private final com.ridex.ridex_app.redis.DriverLocationIndex locations =
+            mock(com.ridex.ridex_app.redis.DriverLocationIndex.class);
     private final DriverAvailabilityService service =
-            new DriverAvailabilityService(profileRepository, vehicleRepository, userService);
+            new DriverAvailabilityService(profileRepository, vehicleRepository, userService, locations);
 
     private final User user = new User("Ravi Kumar", "ravi@example.com", "+919812345678", "hash", Role.DRIVER);
     private final DriverProfile profile = new DriverProfile(user, "DL-12345", LocalDate.now().plusYears(2));
@@ -89,8 +91,7 @@ class DriverAvailabilityServiceTest {
 
     @Test
     void locationUpdatesNeedTheDriverToBeOnline() {
-        profileExists();
-        when(profileRepository.updateLocation(any(), any(), any(), any())).thenReturn(0);
+        profileExists();   // a profile that never went online
 
         assertThatThrownBy(() -> service.updateLocation(user.getId(), position))
                 .isInstanceOf(ConflictException.class)
@@ -100,11 +101,12 @@ class DriverAvailabilityServiceTest {
     @Test
     void anOnlineDriversLocationIsStored() {
         profileExists();
-        when(profileRepository.updateLocation(any(), any(), any(), any())).thenReturn(1);
+        profile.approve(java.util.UUID.randomUUID(), Instant.now());
+        profile.goOnline(position, Instant.now());
 
         service.updateLocation(user.getId(), position);
 
-        verify(profileRepository).updateLocation(any(), any(), any(), any());
+        verify(locations).update(profile.getId(), 12.971599, 77.594566);
     }
 
     @Test

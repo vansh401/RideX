@@ -2,7 +2,7 @@ package com.ridex.ridex_app.mail;
 
 public interface EmailSender {
 
-    void sendVerificationEmail(String toEmail, String fullName, String verifyUrl);
+    void sendVerificationEmail(String toEmail, String fullName, String verifyUrl, String otp);
 
     void sendPasswordResetEmail(String toEmail, String fullName, String resetUrl);
 }

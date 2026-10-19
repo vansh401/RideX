@@ -55,8 +55,8 @@ public class AdminUserService {
     /**
      * Suspends an account: it can no longer log in or use any write endpoint (every one re-checks
      * the account in the database), its refresh tokens are revoked, and a driver stops receiving
-     * offers. An access token already issued still reads data until it expires (at most 15 minutes);
-     * closing that gap completely is the Redis-based revocation planned for Phase 4.
+     * offers. Access tokens already issued are cancelled in Redis (see RefreshTokenService.revokeAllForUser),
+     * so the user is locked out immediately, not after the token expires.
      */
     @Transactional
     public AdminUserResponse suspend(UUID adminId, UUID userId, String reason) {

@@ -34,10 +34,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private static final Logger log = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
     private static final String BEARER_PREFIX = "Bearer ";
 
-    private final JwtDecoder jwtDecoder;
+    /** Request attributes that let /logout cancel the very token that was used to call it. */
+    public static final String ATTR_JTI = "ridex.jwt.jti";
+    public static final String ATTR_EXPIRES_AT = "ridex.jwt.expiresAt";
 
-    public JwtAuthenticationFilter(JwtDecoder jwtDecoder) {
+    private final JwtDecoder jwtDecoder;
+    private final AccessTokenRevocations revocations;
+
+    public JwtAuthenticationFilter(JwtDecoder jwtDecoder, AccessTokenRevocations revocations) {
         this.jwtDecoder = jwtDecoder;
+        this.revocations = revocations;
     }
 
     @Override
@@ -60,6 +66,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                 AuthenticatedUser principal =
                         new AuthenticatedUser(UUID.fromString(subject), Role.valueOf(roleClaim));
+
+                // A valid signature is not enough: the user may have been suspended, logged out or had
+                // their password reset since this token was issued (see AccessTokenRevocations).
+                if (revocations.isRevoked(principal.id(), jwt.getId(), issuedAtMillis(jwt))) {
+                    throw new IllegalArgumentException("Token has been revoked");
+                }
+                request.setAttribute(ATTR_JTI, jwt.getId());
+                request.setAttribute(ATTR_EXPIRES_AT, jwt.getExpiresAt());
                 List<GrantedAuthority> authorities =
                         List.of(new SimpleGrantedAuthority("ROLE_" + principal.role().name()));
 
@@ -76,5 +90,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private static long issuedAtMillis(Jwt jwt) {
+        Long precise = jwt.getClaim("iat_ms");
+        if (precise != null) {
+            return precise;
+        }
+        return jwt.getIssuedAt() == null ? 0 : jwt.getIssuedAt().toEpochMilli();
     }
 }

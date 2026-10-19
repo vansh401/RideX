@@ -14,7 +14,15 @@ import com.jayway.jsonpath.JsonPath;
 /** A tiny HTTP client for integration tests: real requests to the running application. */
 public class ApiClient {
 
-    public record Response(int status, String body) {
+    public record Response(int status, String body, java.util.Map<String, java.util.List<String>> headers) {
+
+        /** First value of a response header (names are case-insensitive), or null. */
+        public String header(String name) {
+            return headers.entrySet().stream()
+                    .filter(e -> e.getKey().equalsIgnoreCase(name))
+                    .map(e -> e.getValue().get(0))
+                    .findFirst().orElse(null);
+        }
 
         /** Reads a value from the JSON body with a JsonPath such as "$.fare.total". */
         public <T> T json(String path) {
@@ -102,7 +110,7 @@ public class ApiClient {
     private Response send(HttpRequest.Builder builder) {
         try {
             HttpResponse<String> response = http.send(builder.build(), HttpResponse.BodyHandlers.ofString());
-            return new Response(response.statusCode(), response.body());
+            return new Response(response.statusCode(), response.body(), response.headers().map());
         } catch (IOException e) {
             throw new IllegalStateException(e);
         } catch (InterruptedException e) {

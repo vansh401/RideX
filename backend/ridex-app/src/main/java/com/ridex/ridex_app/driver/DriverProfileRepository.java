@@ -43,15 +43,4 @@ public interface DriverProfileRepository extends JpaRepository<DriverProfile, UU
     long countByApprovalStatus(ApprovalStatus status);
 
     long countByOnlineTrue();
-
-    /**
-     * Location "heartbeat" from an online driver. A bulk UPDATE on purpose: it does not load the
-     * entity and does not bump the optimistic-lock version, so frequent location pings can never
-     * conflict with an admin approving the same profile. Returns 0 if the driver is not online.
-     */
-    @Modifying(clearAutomatically = true, flushAutomatically = true)
-    @Query("update DriverProfile p set p.lastLatitude = :lat, p.lastLongitude = :lng, p.lastSeenAt = :now "
-            + "where p.id = :id and p.online = true")
-    int updateLocation(@Param("id") UUID id, @Param("lat") BigDecimal lat, @Param("lng") BigDecimal lng,
-                       @Param("now") Instant now);
 }
