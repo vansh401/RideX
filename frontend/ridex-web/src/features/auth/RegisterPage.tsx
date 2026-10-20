@@ -1,8 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { MailCheck } from 'lucide-react'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { api } from '@/api/client'
 import { toFriendlyError } from '@/api/errors'
 import { Alert } from '@/components/ui/alert'
@@ -28,7 +27,7 @@ const COPY: Record<SignupRole, { title: string; subtitle: string; cta: string }>
 export function RegisterPage({ role }: { role: SignupRole }) {
   const copy = COPY[role]
   const [formError, setFormError] = useState<string | null>(null)
-  const [sentTo, setSentTo] = useState<string | null>(null)
+  const navigate = useNavigate()
 
   const {
     register,
@@ -41,7 +40,9 @@ export function RegisterPage({ role }: { role: SignupRole }) {
     setFormError(null)
     try {
       await api.post('/api/auth/register', { ...values, role })
-      setSentTo(values.email)
+      // Straight to the code page. The email travels in router state (not in the address bar), so the
+      // person is not asked for it again.
+      void navigate('/verify-email', { state: { email: values.email } })
     } catch (err) {
       const friendly = toFriendlyError(err)
       setFormError(friendly.message)
@@ -52,25 +53,6 @@ export function RegisterPage({ role }: { role: SignupRole }) {
         }
       }
     }
-  }
-
-  if (sentTo) {
-    return (
-      <div>
-        <span className="grid size-14 place-items-center rounded-lg bg-accent-subtle text-accent">
-          <MailCheck className="size-7" aria-hidden />
-        </span>
-        <h1 className="mt-6 text-3xl font-bold tracking-tight text-fg">Check your email</h1>
-        <p className="mt-2 text-fg-secondary">
-          We sent a verification link to <strong className="text-fg">{sentTo}</strong>. Open it to activate your
-          account, then log in.
-        </p>
-        <p className="mt-2 text-sm text-fg-muted">The link works once and expires after 15 minutes.</p>
-        <Button asChild size="lg" className="mt-8 w-full">
-          <Link to="/login">Go to log in</Link>
-        </Button>
-      </div>
-    )
   }
 
   return (
