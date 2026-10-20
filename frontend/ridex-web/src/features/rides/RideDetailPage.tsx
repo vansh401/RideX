@@ -28,6 +28,7 @@ import { usePolling } from '@/lib/usePolling'
 import { useRealtime, useSubscription } from '@/realtime/useRealtime'
 import { FareBreakdown } from './FareBreakdown'
 import { RideProgress } from './RideProgress'
+import { PaymentCard } from './PaymentCard'
 import { RatingForm } from './RatingForm'
 import { RatingValue } from './StarRating'
 
@@ -237,7 +238,7 @@ export function RideDetailPage() {
             <CardContent>
               <p className="mb-3 font-semibold text-fg">Fare</p>
               <FareBreakdown fare={ride.fare} />
-              <p className="mt-3 text-xs text-fg-muted">Cash payment to the driver.</p>
+              <p className="mt-3 text-xs text-fg-muted">Charged automatically when the trip ends.</p>
             </CardContent>
           </Card>
 
@@ -258,6 +259,8 @@ export function RideDetailPage() {
           {canCancel && (
             <Button variant="danger" onClick={() => setCancelOpen(true)}>Cancel ride</Button>
           )}
+
+          {ride.status === 'RIDE_COMPLETED' && <PaymentCard rideId={ride.id} canRetry={role === 'RIDER'} />}
 
           {ride.status === 'RIDE_COMPLETED' && (role === 'RIDER' || role === 'DRIVER') && (
             <RatingForm rideId={ride.id} role={role} existing={ride.myRating} onSaved={refresh} />

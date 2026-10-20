@@ -39,6 +39,10 @@ const AdminVehiclesPage = lazy(() => import('@/features/admin/AdminVehiclesPage'
 const NotificationsPage = lazy(() =>
   import('@/features/notifications/NotificationsPage').then((m) => ({ default: m.NotificationsPage })),
 )
+const AdminPaymentsPage = lazy(() =>
+  import('@/features/admin/AdminPaymentsPage').then((m) => ({ default: m.AdminPaymentsPage })),
+)
+const AdminEventsPage = lazy(() => import('@/features/admin/AdminEventsPage').then((m) => ({ default: m.AdminEventsPage })))
 const ForbiddenPage = lazy(() => import('@/features/app/StatusPages').then((m) => ({ default: m.ForbiddenPage })))
 
 function App() {
@@ -90,6 +94,8 @@ function App() {
               <Route path="/admin/drivers" element={<AdminDriversPage />} />
               <Route path="/admin/drivers/:driverId" element={<AdminDriverDetailPage />} />
               <Route path="/admin/users" element={<AdminUsersPage />} />
+              <Route path="/admin/payments" element={<AdminPaymentsPage />} />
+              <Route path="/admin/events" element={<AdminEventsPage />} />
               <Route path="/admin/vehicles" element={<AdminVehiclesPage />} />
               <Route path="/admin/rides" element={<RideHistoryPage path="/api/admin/rides" eyebrow="Admin" title="All rides" />} />
             </Route>

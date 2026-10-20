@@ -39,6 +39,12 @@ import jakarta.persistence.EntityManagerFactory;
  * the database constraints attacked directly (bypassing all application code) to show the rules
  * hold even if the code above them had a bug.
  */
+// This test COUNTS every SQL statement the application runs. The event machinery (outbox relay, Kafka consumers) runs
+// queries in the background, which would be counted too, so it is switched off for this test class.
+@org.springframework.test.context.TestPropertySource(properties = {
+        "ridex.outbox.enabled=false",
+        "spring.kafka.listener.auto-startup=false"
+})
 class RideDataIntegrationTest extends AbstractApiTest {
 
     @Autowired private TransactionTemplate tx;

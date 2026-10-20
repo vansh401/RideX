@@ -248,7 +248,7 @@ export function BookRidePage() {
                 <Button size="lg" disabled={!chosen} loading={requesting} onClick={request}>
                   {chosen ? `Request ${CATEGORY_LABEL[category]} · ${formatINR(chosen.total)}` : 'Request ride'}
                 </Button>
-                <p className="text-xs text-fg-muted">Pay the driver at the end of the trip. Online payment arrives in a later phase.</p>
+                <p className="text-xs text-fg-muted">Your test card is charged automatically when the trip ends. No real money moves.</p>
               </CardContent>
             </Card>
           )}

@@ -241,7 +241,8 @@ public class Ride {
         this.status = target;
         this.history.add(new RideStatusChange(this, from, target, actorId, role, note, now));
         UUID driverUserId = driver == null ? null : driver.getUser().getId();
-        pendingEvents.add(new RideStatusChanged(id, rider.getId(), driverUserId, from, target, role, note, now, null));
+        pendingEvents.add(new RideStatusChanged(id, rider.getId(), driverUserId, from, target, role, note, now,
+                pickupAddress, dropoffAddress, totalFare, currency, null));
     }
 
     /** Read by Spring Data when this ride is saved: every status change since the last save. */

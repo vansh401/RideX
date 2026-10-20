@@ -292,3 +292,58 @@ export interface DriverPosition {
   at?: string
   updatedAt?: string | null
 }
+
+// ---------------------------------------------------------------------------------------------
+// Phase 6: events and payments
+
+export type PaymentStatus = 'PENDING' | 'SUCCEEDED' | 'FAILED'
+
+export interface Payment {
+  id: string
+  rideId: string
+  amount: number
+  currency: string
+  status: PaymentStatus
+  attempts: number
+  failureReason: string | null
+  gatewayReference: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ConsumerLag {
+  group: string
+  topic: string
+  lag: number
+}
+
+export interface DeadLetter {
+  id: number
+  sourceTopic: string
+  partition: number | null
+  offset: number | null
+  key: string | null
+  failedGroup: string | null
+  error: string | null
+  payload: string | null
+  createdAt: string
+}
+
+export interface AuditEntry {
+  id: number
+  eventId: string
+  topic: string
+  partition: number
+  offset: number
+  key: string
+  type: string
+  payload: string
+  occurredAt: string
+  receivedAt: string
+}
+
+export interface DailyCount {
+  day: string
+  status: string
+  count: number
+}

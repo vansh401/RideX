@@ -69,6 +69,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/rides/*/cancel", "/api/rides/*/ratings").hasAnyRole("RIDER", "DRIVER")
                         .requestMatchers(HttpMethod.GET, "/api/rides", "/api/rides/current").hasAnyRole("RIDER", "DRIVER")
                         .requestMatchers(HttpMethod.GET, "/api/rides/*", "/api/rides/*/timeline", "/api/rides/*/driver-location").hasAnyRole("RIDER", "DRIVER", "ADMIN")
+                        // Payments: the people on the ride (the service narrows it further) and admins; only a rider retries
+                        .requestMatchers(HttpMethod.GET, "/api/payments/rides/*").hasAnyRole("RIDER", "DRIVER", "ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/payments/rides/*/retry").hasRole("RIDER")
                         .requestMatchers("/api/drivers/**").hasRole("DRIVER")
                         .anyRequest().authenticated())
                 // Run our JWT filter before Spring's username/password filter position

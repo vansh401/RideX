@@ -1,4 +1,5 @@
 import {
+  Activity,
   BadgeCheck,
   BarChart3,
   Bell,
@@ -72,7 +73,8 @@ export const navigation: Record<Role, NavGroup[]> = {
         { label: 'Drivers', to: '/admin/drivers', icon: BadgeCheck, available: true },
         { label: 'Vehicles', to: '/admin/vehicles', icon: Car, available: true },
         { label: 'Rides', to: '/admin/rides', icon: History, available: true },
-        { label: 'Payments', to: '/admin/payments', icon: Wallet, available: false, when: 'Step 6.5' },
+        { label: 'Payments', to: '/admin/payments', icon: Wallet, available: true },
+        { label: 'Events', to: '/admin/events', icon: Activity, available: true },
         { label: 'Coupons', to: '/admin/coupons', icon: Ticket, available: false, when: 'Step 14.3' },
         { label: 'Complaints', to: '/admin/complaints', icon: LifeBuoy, available: false, when: 'Step 14.7' },
         { label: 'Reports', to: '/admin/reports', icon: BarChart3, available: false, when: 'Step 14.6' },

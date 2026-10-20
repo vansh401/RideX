@@ -59,10 +59,14 @@ describe('emergencyContactSchema', () => {
 })
 
 describe('licenceSchema', () => {
+  // The schema compares against the LOCAL date (todayIso). Building "tomorrow" from toISOString() would use the UTC
+  // date, which is still "today" for several hours each night in timezones ahead of UTC (such as India).
   const tomorrow = () => {
     const d = new Date()
     d.setDate(d.getDate() + 1)
-    return d.toISOString().slice(0, 10)
+    const month = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${d.getFullYear()}-${month}-${day}`
   }
 
   it('accepts a valid licence expiring in the future', () => {

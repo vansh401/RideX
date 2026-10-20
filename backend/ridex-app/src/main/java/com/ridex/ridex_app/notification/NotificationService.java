@@ -44,7 +44,26 @@ public class NotificationService {
         this.newTransaction.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
 
-    /** Stores the notification and pushes it live. Never throws. */
+    /**
+     * Saves a notification as part of the CALLER'S transaction and pushes it live once that transaction commits.
+     * Used by the Kafka consumer, where the notification and the "event already handled" marker must commit together.
+     */
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.MANDATORY)
+    public void record(UUID userId, NotificationType type, String title, String body, UUID rideId) {
+        Notification saved = repository.save(new Notification(userId, type, title, body, rideId, Instant.now()));
+        NotificationResponse response = NotificationResponse.from(saved);
+        com.ridex.ridex_app.common.AfterCommit.run(() -> pushLive(userId, response));
+    }
+
+    private void pushLive(UUID userId, NotificationResponse response) {
+        try {
+            publisher.toUser(userId, "/queue/notifications", response);
+        } catch (RuntimeException e) {
+            log.warn("Could not push a notification to user {}: {}", userId, e.getClass().getSimpleName());
+        }
+    }
+
+    /** Stores the notification in its own transaction and pushes it live. Never throws. */
     public void notify(UUID userId, NotificationType type, String title, String body, UUID rideId) {
         try {
             Notification saved = newTransaction.execute(status ->

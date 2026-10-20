@@ -249,19 +249,20 @@ class LiveRideIntegrationTest extends AbstractApiTest {
         StompTestClient driverLive = listener(driver.token(), "/user/queue/notifications");
 
         String rideId = expect(201, api().post("/api/rides", rider.token(), rideBody("CAB", lat, lng))).id();
-        String offerNote = driverLive.next("/user/queue/notifications", 5);
+        // Notifications now travel through Kafka (outbox, topic, consumer), so they arrive a moment later than the instant WebSocket push
+        String offerNote = driverLive.next("/user/queue/notifications", 20);
         assertThat(field(offerNote, "$.type")).isEqualTo("RIDE_OFFER");
         assertThat(field(offerNote, "$.title")).isEqualTo("New ride request");
         assertThat(JsonPath.<Boolean>read(offerNote, "$.read")).isFalse();
 
         expect(200, api().post("/api/rides/" + rideId + "/accept", driver.token(), null));
-        String accepted = riderLive.next("/user/queue/notifications", 5);
+        String accepted = riderLive.next("/user/queue/notifications", 20);
         assertThat(field(accepted, "$.type")).isEqualTo("RIDE_ACCEPTED");
 
         // ...and they are stored, so a reload still shows them
         Response list = expect(200, api().get("/api/notifications", rider.token()));
         assertThat(list.<List<String>>json("$.content[*].type")).contains("RIDE_ACCEPTED");
-        assertThat(expect(200, api().get("/api/notifications/unread-count", rider.token())).<Integer>json("$.count")).isEqualTo(1);
+        assertThat(awaitUnread(rider, 1)).isTrue();
 
         cleanUpRide(rideId, rider);
         api().post("/api/drivers/me/availability/offline", driver.token(), null);
@@ -277,6 +278,8 @@ class LiveRideIntegrationTest extends AbstractApiTest {
         String rideId = expect(201, api().post("/api/rides", rider.token(), rideBody("CAB", lat, lng))).id();
         api().post("/api/rides/" + rideId + "/accept", driver.token(), null);
         api().post("/api/rides/" + rideId + "/arrived", driver.token(), null);
+        // Notifications are created by a Kafka consumer a moment after the ride changes: wait for both
+        assertThat(awaitUnread(rider, 2)).isTrue();
         String firstId = expect(200, api().get("/api/notifications", rider.token())).json("$.content[0].id");
 
         expect(404, api().post("/api/notifications/" + firstId + "/read", other.token(), null));   // not theirs
@@ -308,6 +311,23 @@ class LiveRideIntegrationTest extends AbstractApiTest {
     void anUnauthenticatedCallerCannotReadNotifications() {
         assertThat(api().get("/api/notifications", null).status()).isEqualTo(401);
         assertThat(api().get("/api/notifications/unread-count", null).status()).isEqualTo(401);
+    }
+
+    private boolean awaitUnread(Person person, int expected) {
+        long deadline = System.currentTimeMillis() + 30_000;
+        while (System.currentTimeMillis() < deadline) {
+            Response count = api().get("/api/notifications/unread-count", person.token());
+            if (count.status() == 200 && count.<Integer>json("$.count") == expected) {
+                return true;
+            }
+            try {
+                Thread.sleep(200);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return false;
+            }
+        }
+        return false;
     }
 
     private void cleanUpRide(String rideId, Person rider) {

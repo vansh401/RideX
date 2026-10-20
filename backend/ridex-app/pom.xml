@@ -33,6 +33,12 @@
 	</properties>
 	<dependencies>
 
+		<!-- Kafka: Phase 6 (event-driven design: outbox, consumers, dead-letter topics) -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-kafka</artifactId>
+		</dependency>
+
 		<!-- WebSocket + STOMP: Phase 5 (live ride updates, driver location streaming, notifications) -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
@@ -135,6 +141,11 @@
 		<dependency>
 			<groupId>org.testcontainers</groupId>
 			<artifactId>testcontainers-postgresql</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>testcontainers-kafka</artifactId>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>

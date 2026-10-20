@@ -138,6 +138,25 @@ class PermissionMatrixIntegrationTest extends AbstractIntegrationTest {
             "POST,/api/notifications/read-all,DRIVER,200",
             "POST,/api/notifications/00000000-0000-0000-0000-000000000001/read,RIDER,404",
             "POST,/api/notifications/00000000-0000-0000-0000-000000000001/read,NONE,401",
+
+            // ---- payments: the people on the ride and admins; only a rider retries ----
+            "GET,/api/payments/rides/00000000-0000-0000-0000-000000000001,NONE,401",
+            "GET,/api/payments/rides/00000000-0000-0000-0000-000000000001,RIDER,404",
+            "GET,/api/payments/rides/00000000-0000-0000-0000-000000000001,DRIVER,404",
+            "GET,/api/payments/rides/00000000-0000-0000-0000-000000000001,ADMIN,404",
+            "POST,/api/payments/rides/00000000-0000-0000-0000-000000000001/retry,NONE,401",
+            "POST,/api/payments/rides/00000000-0000-0000-0000-000000000001/retry,DRIVER,403",
+            "POST,/api/payments/rides/00000000-0000-0000-0000-000000000001/retry,ADMIN,403",
+            "POST,/api/payments/rides/00000000-0000-0000-0000-000000000001/retry,RIDER,404",
+            "GET,/api/admin/payments,RIDER,403",
+            "GET,/api/admin/payments,ADMIN,200",
+
+            // ---- event system: admins only ----
+            "GET,/api/admin/events/audit,DRIVER,403",
+            "GET,/api/admin/events/audit,ADMIN,200",
+            "GET,/api/admin/events/lag,RIDER,403",
+            "GET,/api/admin/events/dead-letters,ADMIN,200",
+            "GET,/api/admin/analytics/ride-status-per-day,RIDER,403",
     })
     void eachRoleSeesExactlyWhatItShould(String method, String path, String role, int expected) throws Exception {
         assertThat(call(method, path, role)).isEqualTo(expected);

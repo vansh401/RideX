@@ -21,6 +21,10 @@ public record RideStatusChanged(
         ActorRole actor,
         String note,
         Instant at,
+        String pickupAddress,
+        String dropoffAddress,
+        BigDecimal fareTotal,
+        String currency,
         OfferSummary offer
 ) {
 
@@ -36,6 +40,7 @@ public record RideStatusChanged(
     }
 
     public RideStatusChanged withOffer(UUID offeredDriverUserId, OfferSummary summary) {
-        return new RideStatusChanged(rideId, riderUserId, offeredDriverUserId, from, to, actor, note, at, summary);
+        return new RideStatusChanged(rideId, riderUserId, offeredDriverUserId, from, to, actor, note, at,
+                pickupAddress, dropoffAddress, fareTotal, currency, summary);
     }
 }

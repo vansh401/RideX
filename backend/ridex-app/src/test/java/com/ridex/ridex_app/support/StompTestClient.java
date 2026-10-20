@@ -139,8 +139,12 @@ public class StompTestClient implements AutoCloseable {
 
     @Override
     public void close() {
-        if (session != null && session.isConnected()) {
-            session.disconnect();
+        try {
+            if (session != null && session.isConnected()) {
+                session.disconnect();
+            }
+        } catch (RuntimeException alreadyClosed) {
+            // the server may have closed this connection already (that is what several tests check)
         }
         client.stop();
     }
