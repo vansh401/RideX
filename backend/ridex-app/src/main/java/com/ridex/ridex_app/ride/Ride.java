@@ -3,6 +3,7 @@ package com.ridex.ridex_app.ride;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
@@ -12,6 +13,9 @@ import com.ridex.ridex_app.driver.DriverProfile;
 import com.ridex.ridex_app.driver.Vehicle;
 import com.ridex.ridex_app.driver.VehicleCategory;
 import com.ridex.ridex_app.pricing.FareEstimate;
+import org.springframework.data.domain.AfterDomainEventPublication;
+import org.springframework.data.domain.DomainEvents;
+
 import com.ridex.ridex_app.user.User;
 
 import jakarta.persistence.CascadeType;
@@ -25,6 +29,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import jakarta.persistence.Version;
 
 /**
@@ -126,6 +131,12 @@ public class Ride {
     @OneToMany(mappedBy = "ride", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<RideStatusChange> history = new ArrayList<>();
 
+    // Status changes made since this ride was last saved. Spring Data publishes them as events when the
+    // ride is saved (see domainEvents), so the rest of the application can react (live pushes, notifications)
+    // without this class knowing about any of it. Not stored in the database.
+    @Transient
+    private final List<RideStatusChanged> pendingEvents = new ArrayList<>();
+
     // Required by JPA; not for application code
     protected Ride() {
     }
@@ -173,6 +184,10 @@ public class Ride {
         this.driver = driver;
         this.vehicle = vehicle;
         this.offerExpiresAt = expiresAt;
+        // The offered driver is only known now, so complete the event that moveTo just recorded
+        RideStatusChanged recorded = pendingEvents.remove(pendingEvents.size() - 1);
+        pendingEvents.add(recorded.withOffer(driver.getUser().getId(), new RideStatusChanged.OfferSummary(
+                category.name(), pickupAddress, dropoffAddress, distanceKm, totalFare, expiresAt)));
     }
 
     public void accept(UUID driverUserId, Instant now) {
@@ -225,6 +240,19 @@ public class Ride {
         RideStatus from = status;
         this.status = target;
         this.history.add(new RideStatusChange(this, from, target, actorId, role, note, now));
+        UUID driverUserId = driver == null ? null : driver.getUser().getId();
+        pendingEvents.add(new RideStatusChanged(id, rider.getId(), driverUserId, from, target, role, note, now, null));
+    }
+
+    /** Read by Spring Data when this ride is saved: every status change since the last save. */
+    @DomainEvents
+    Collection<RideStatusChanged> domainEvents() {
+        return List.copyOf(pendingEvents);
+    }
+
+    @AfterDomainEventPublication
+    void clearDomainEvents() {
+        pendingEvents.clear();
     }
 
     public boolean isParticipant(UUID userId) {

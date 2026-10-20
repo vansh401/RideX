@@ -33,6 +33,23 @@ public interface RideRepository extends JpaRepository<Ride, UUID> {
     @EntityGraph(attributePaths = {"rider", "driver", "driver.user", "vehicle"})
     Optional<Ride> findFirstByDriverIdAndStatusIn(UUID driverProfileId, Collection<RideStatus> statuses);
 
+    /** Is this user the rider or the driver of this ride? (Used to authorise WebSocket subscriptions.) */
+    @Query("""
+            select count(r) > 0 from Ride r
+            left join r.driver d
+            left join d.user du
+            where r.id = :rideId and (r.rider.id = :userId or du.id = :userId)
+            """)
+    boolean isParticipant(@Param("rideId") UUID rideId, @Param("userId") UUID userId);
+
+    /** The ride this driver (by user id) is currently on, if any. One cheap lookup through an index. */
+    @Query("""
+            select r.id from Ride r join r.driver d join d.user du
+            where du.id = :userId and r.status in :statuses
+            """)
+    Optional<UUID> findActiveRideIdOfDriverUser(@Param("userId") UUID userId,
+                                               @Param("statuses") Collection<RideStatus> statuses);
+
     // ----- history (step 3.9) -----
 
     @EntityGraph(attributePaths = {"rider", "driver", "driver.user", "vehicle"})

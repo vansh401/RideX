@@ -40,6 +40,11 @@ public abstract class AbstractApiTest extends AbstractIntegrationTest {
 
     protected ApiClient api;
 
+    /** The port the application listens on in this test (for WebSocket clients). */
+    protected int serverPort() {
+        return port;
+    }
+
     protected ApiClient api() {
         if (api == null) {
             api = new ApiClient(port);

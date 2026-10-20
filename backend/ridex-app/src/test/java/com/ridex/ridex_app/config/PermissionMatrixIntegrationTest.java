@@ -120,6 +120,24 @@ class PermissionMatrixIntegrationTest extends AbstractIntegrationTest {
             "POST,/api/rides/00000000-0000-0000-0000-000000000001/cancel,ADMIN,403",
             "POST,/api/rides/00000000-0000-0000-0000-000000000001/ratings,ADMIN,403",
             "POST,/api/rides/00000000-0000-0000-0000-000000000001/ratings,RIDER,400",
+
+            // ---- live driver position: the ride's rider, driver or an admin (404 hides rides that are not yours) ----
+            "GET,/api/rides/00000000-0000-0000-0000-000000000001/driver-location,NONE,401",
+            "GET,/api/rides/00000000-0000-0000-0000-000000000001/driver-location,RIDER,404",
+            "GET,/api/rides/00000000-0000-0000-0000-000000000001/driver-location,DRIVER,404",
+            "GET,/api/rides/00000000-0000-0000-0000-000000000001/driver-location,ADMIN,404",
+
+            // ---- notifications: any signed-in user, each only their own ----
+            "GET,/api/notifications,NONE,401",
+            "GET,/api/notifications,RIDER,200",
+            "GET,/api/notifications,DRIVER,200",
+            "GET,/api/notifications,ADMIN,200",
+            "GET,/api/notifications/unread-count,NONE,401",
+            "GET,/api/notifications/unread-count,RIDER,200",
+            "POST,/api/notifications/read-all,NONE,401",
+            "POST,/api/notifications/read-all,DRIVER,200",
+            "POST,/api/notifications/00000000-0000-0000-0000-000000000001/read,RIDER,404",
+            "POST,/api/notifications/00000000-0000-0000-0000-000000000001/read,NONE,401",
     })
     void eachRoleSeesExactlyWhatItShould(String method, String path, String role, int expected) throws Exception {
         assertThat(call(method, path, role)).isEqualTo(expected);

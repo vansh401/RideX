@@ -240,3 +240,55 @@ export interface AdminStats {
   completedRevenue: number
   currency: string
 }
+
+// ---------------------------------------------------------------------------------------------
+// Phase 5: real time and notifications
+
+export type NotificationType =
+  | 'RIDE_OFFER'
+  | 'RIDE_ACCEPTED'
+  | 'DRIVER_ARRIVED'
+  | 'TRIP_STARTED'
+  | 'TRIP_COMPLETED'
+  | 'RIDE_CANCELLED'
+  | 'NO_DRIVER_FOUND'
+  | 'DRIVER_APPROVED'
+  | 'DRIVER_REJECTED'
+
+export interface AppNotification {
+  id: string
+  type: NotificationType
+  title: string
+  body: string
+  rideId: string | null
+  createdAt: string
+  read: boolean
+}
+
+/** Pushed on /user/queue/ride-updates: only a hint, the details come from GET /api/rides/{id}. */
+export interface LiveRideUpdate {
+  rideId: string
+  status: RideStatus
+  previousStatus: RideStatus
+  at: string
+}
+
+/** Pushed on /user/queue/offers. */
+export interface LiveOffer {
+  rideId: string
+  withdrawn: boolean
+  category?: VehicleCategory
+  pickupAddress?: string
+  dropoffAddress?: string
+  distanceKm?: number
+  totalFare?: number
+  expiresAt?: string
+}
+
+/** Pushed on /topic/rides/{id}/location, and returned by GET /api/rides/{id}/driver-location. */
+export interface DriverPosition {
+  latitude: number
+  longitude: number
+  at?: string
+  updatedAt?: string | null
+}

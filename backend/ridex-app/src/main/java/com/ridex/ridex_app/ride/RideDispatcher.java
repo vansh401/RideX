@@ -160,7 +160,10 @@ public class RideDispatcher {
 
     private void inOwnTransaction(UUID rideId, Consumer<Ride> action) {
         try {
-            transaction.executeWithoutResult(status -> rideRepository.findById(rideId).ifPresent(action));
+            transaction.executeWithoutResult(status -> rideRepository.findById(rideId).ifPresent(ride -> {
+                action.accept(ride);
+                rideRepository.save(ride);   // publishes the status changes (see Ride.domainEvents)
+            }));
         } catch (ObjectOptimisticLockingFailureException e) {
             // Someone (a driver accepting, a rider cancelling) changed this ride a moment ago.
             // Their change wins; the next cycle looks at the ride again if it still needs work.

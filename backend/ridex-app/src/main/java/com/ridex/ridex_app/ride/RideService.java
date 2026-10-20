@@ -19,6 +19,7 @@ import com.ridex.ridex_app.common.Paging;
 import com.ridex.ridex_app.common.ResourceNotFoundException;
 import com.ridex.ridex_app.driver.DriverProfileService;
 import com.ridex.ridex_app.pricing.FareEstimate;
+import com.ridex.ridex_app.redis.DriverLocationIndex;
 import com.ridex.ridex_app.pricing.PricingService;
 import com.ridex.ridex_app.user.User;
 import com.ridex.ridex_app.user.UserService;
@@ -36,6 +37,9 @@ import com.ridex.ridex_app.user.UserService;
 public class RideService {
 
     private static final Set<RideStatus> ACTIVE = RideStatus.activeStatuses();
+    /** Statuses in which the driver is on the way to the rider or driving them. */
+    private static final Set<RideStatus> TRIP_IN_PROGRESS =
+            Set.of(RideStatus.DRIVER_ACCEPTED, RideStatus.DRIVER_ARRIVED, RideStatus.RIDE_STARTED);
 
     private final RideRepository rideRepository;
     private final RideStatusChangeRepository historyRepository;
@@ -44,6 +48,7 @@ public class RideService {
     private final UserService userService;
     private final DriverProfileService driverProfileService;
     private final RideRatingLookup ratingLookup;
+    private final DriverLocationIndex locations;
 
     public RideService(RideRepository rideRepository,
                        RideStatusChangeRepository historyRepository,
@@ -51,7 +56,8 @@ public class RideService {
                        PricingService pricingService,
                        UserService userService,
                        DriverProfileService driverProfileService,
-                       RideRatingLookup ratingLookup) {
+                       RideRatingLookup ratingLookup,
+                       DriverLocationIndex locations) {
         this.rideRepository = rideRepository;
         this.historyRepository = historyRepository;
         this.dispatcher = dispatcher;
@@ -59,6 +65,7 @@ public class RideService {
         this.userService = userService;
         this.driverProfileService = driverProfileService;
         this.ratingLookup = ratingLookup;
+        this.locations = locations;
     }
 
     // ------------------------------------------------------------------ rider: request
@@ -85,6 +92,8 @@ public class RideService {
         // so two requests racing each other cannot both get through
         rideRepository.saveAndFlush(ride);
         dispatcher.tryAssign(ride, now);
+        // Saving again publishes the status changes made by tryAssign (the offer), see Ride.domainEvents
+        rideRepository.save(ride);
         return RideResponse.from(ride, ActorRole.RIDER, null);
     }
 
@@ -136,6 +145,29 @@ public class RideService {
         return PageResponse.from(rides, ride -> RideResponse.from(ride, ActorRole.ADMIN, null));
     }
 
+    /** The ride this driver is on right now (accepted, arrived or started), used by the location stream. */
+    @Transactional(readOnly = true)
+    public Optional<UUID> activeRideIdOfDriver(UUID driverUserId) {
+        return rideRepository.findActiveRideIdOfDriverUser(driverUserId, TRIP_IN_PROGRESS);
+    }
+
+    /**
+     * Where the driver is right now, for the participants of a ride. Empty when the driver is not
+     * on the way (no driver yet, trip finished) or is not sending locations at the moment.
+     */
+    @Transactional(readOnly = true)
+    public Optional<DriverPosition> driverPosition(UUID userId, ActorRole role, UUID rideId) {
+        Ride ride = accessibleRide(userId, role, rideId);
+        if (ride.getDriver() == null || !TRIP_IN_PROGRESS.contains(ride.getStatus())) {
+            return Optional.empty();
+        }
+        return locations.position(ride.getDriver().getId())
+                .map(p -> new DriverPosition(p[0], p[1], locations.lastSeen(ride.getDriver().getId()).orElse(null)));
+    }
+
+    public record DriverPosition(double latitude, double longitude, Instant updatedAt) {
+    }
+
     // ------------------------------------------------------------------ driver actions
 
     @Transactional
@@ -152,6 +184,7 @@ public class RideService {
         Ride ride = assignedRide(driverUserId, rideId);
         dispatcher.declineAndReassign(ride, RejectionReason.REJECTED, driverUserId, ActorRole.DRIVER,
                 "Driver declined", Instant.now());
+        rideRepository.save(ride);   // publishes the change (see Ride.domainEvents)
         rideRepository.flush();
     }
 
@@ -209,7 +242,8 @@ public class RideService {
     }
 
     private RideResponse saved(Ride ride, UUID viewerUserId) {
-        rideRepository.flush();   // surface a concurrent-change conflict here, not at commit
+        rideRepository.save(ride);   // publishes the status change as an event (see Ride.domainEvents)
+        rideRepository.flush();      // surface a concurrent-change conflict here, not at commit
         return toResponse(ride, roleOf(ride, viewerUserId), viewerUserId);
     }
 

@@ -4,7 +4,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { api } from '@/api/client'
 import { toFriendlyError } from '@/api/errors'
-import type { Availability, DriverDocument, DriverProfile, LatLng, Ride, Vehicle } from '@/api/types'
+import type { Availability, DriverDocument, DriverProfile, LatLng, LiveOffer, LiveRideUpdate, Ride, Vehicle } from '@/api/types'
 import { PageHeader } from '@/components/brand/PageHeader'
 import { ApprovalBadge } from '@/components/brand/StatusBadge'
 import { RideMap, type MapMarker } from '@/components/map/RideMap'
@@ -15,8 +15,9 @@ import { TextField } from '@/components/ui/text-field'
 import { formatINR } from '@/lib/format'
 import { CATEGORY_LABEL, formatDistance, secondsUntil } from '@/lib/rides'
 import { usePolling } from '@/lib/usePolling'
+import { useRealtime, useSubscription } from '@/realtime/useRealtime'
 
-const HEARTBEAT_MS = 10_000
+const HEARTBEAT_MS = 5_000
 
 interface Snapshot {
   profile: DriverProfile | null
@@ -51,7 +52,16 @@ function Step({ done, to, children }: { done: boolean; to: string; children: str
 /** Driver home: onboarding checklist, the online switch, the incoming offer and the current trip. */
 export function DriverDashboard() {
   const navigate = useNavigate()
-  const { data, error, refresh } = usePolling(load, { intervalMs: 5000 })
+  const { client, state: connection } = useRealtime()
+  const live = connection === 'live'
+  // Live: offers and ride changes are pushed, the periodic reload is just a safety net. Not live: ask often.
+  const { data, error, refresh } = usePolling(load, { intervalMs: live ? 30_000 : 5000 })
+
+  // An offer appears on this screen the moment the server assigns it (and disappears when it is withdrawn)
+  useSubscription<LiveOffer>('/user/queue/offers', () => void refresh())
+  useSubscription<LiveRideUpdate>('/user/queue/ride-updates', () => void refresh())
+  // Messages of ours the server refused (for example "go online first") come back on a private queue
+  useSubscription<{ message: string }>('/user/queue/errors', (e) => toast.error(e.message))
   const [position, setPosition] = useState<LatLng | null>(null)
   const [manualLat, setManualLat] = useState('12.9716')
   const [manualLng, setManualLng] = useState('77.5946')
@@ -69,12 +79,14 @@ export function DriverDashboard() {
   const heartbeat = useCallback(async () => {
     const point = positionRef.current
     if (!point) return
+    // Over the WebSocket when it is up (no new HTTP request every few seconds); the REST call is the fallback
+    if (client.send('/app/driver/location', point)) return
     try {
       await api.put('/api/drivers/me/availability/location', point)
     } catch {
       // a missed beat is harmless; the next one follows
     }
-  }, [])
+  }, [client])
 
   useEffect(() => {
     if (!online) return
@@ -268,7 +280,7 @@ export function DriverDashboard() {
             {online && (
               <>
                 <p className="text-sm text-fg-secondary">
-                  Sharing your location every {HEARTBEAT_MS / 1000} seconds. New requests appear here automatically.
+                  {live ? 'Streaming' : 'Sharing'} your location every {HEARTBEAT_MS / 1000} seconds. New requests appear here automatically.
                 </p>
                 <Button variant="secondary" loading={busy} onClick={goOffline}>Go offline</Button>
               </>

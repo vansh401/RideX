@@ -38,7 +38,8 @@ class RideServiceTest {
     private final DriverProfileService driverProfileService = mock(DriverProfileService.class);
     private final RideRatingLookup ratingLookup = mock(RideRatingLookup.class);
     private final RideService service = new RideService(rideRepository, historyRepository, dispatcher,
-            pricingService, userService, driverProfileService, ratingLookup);
+            pricingService, userService, driverProfileService, ratingLookup,
+            mock(com.ridex.ridex_app.redis.DriverLocationIndex.class));
 
     private final RideTestData data = new RideTestData();
     private final UUID riderId = data.rider.getId();

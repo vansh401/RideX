@@ -16,7 +16,10 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Sheet, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { Tip, TooltipProvider } from '@/components/ui/tooltip'
+import { NotificationBell } from '@/features/notifications/NotificationBell'
 import { cn } from '@/lib/cn'
+import { ConnectionBadge } from '@/realtime/ConnectionBadge'
+import { RealtimeProvider } from '@/realtime/RealtimeProvider'
 import { navigation, type NavItem } from '@/routes/navigation'
 
 const SUBTITLE: Record<Role, string> = {
@@ -116,6 +119,7 @@ export function AppShell() {
   const bottomTabs = navigation[user.role].flatMap((group) => group.items).filter((item) => item.available)
 
   return (
+    <RealtimeProvider>
     <TooltipProvider delayDuration={150}>
       <div className="min-h-screen bg-canvas">
         {/* Desktop sidebar: labels at xl, icon rail at lg */}
@@ -174,6 +178,9 @@ export function AppShell() {
               </p>
               <p className="hidden truncate text-sm text-fg-muted sm:block">{SUBTITLE[user.role]}</p>
             </div>
+
+            <ConnectionBadge />
+            <NotificationBell />
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -239,5 +246,6 @@ export function AppShell() {
         </nav>
       </div>
     </TooltipProvider>
+    </RealtimeProvider>
   )
 }

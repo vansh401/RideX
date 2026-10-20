@@ -75,6 +75,18 @@ public class RideController {
         return service.get(principal.id(), actor(principal), rideId);
     }
 
+    @GetMapping("/{rideId}/driver-location")
+    @PreAuthorize("hasAnyRole('RIDER', 'DRIVER', 'ADMIN')")
+    @Operation(summary = "Where is my driver right now?",
+            description = "The last position, for drawing the map the moment the page opens. After that the position "
+                    + "arrives live on /topic/rides/{id}/location. 204 when the driver is not on the way or is not sending.")
+    public ResponseEntity<RideService.DriverPosition> driverLocation(@AuthenticationPrincipal AuthenticatedUser principal,
+                                                                     @PathVariable UUID rideId) {
+        return service.driverPosition(principal.id(), actor(principal), rideId)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.noContent().build());
+    }
+
     @GetMapping("/{rideId}/timeline")
     @PreAuthorize("hasAnyRole('RIDER', 'DRIVER', 'ADMIN')")
     @Operation(summary = "The audit trail of a ride", description = "Every status change, who made it and when.")

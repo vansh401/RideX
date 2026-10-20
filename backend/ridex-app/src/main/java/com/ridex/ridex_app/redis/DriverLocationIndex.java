@@ -24,6 +24,9 @@ public interface DriverLocationIndex {
     /** Drivers within the radius, nearest first, at most {@code limit}, all with a fresh heartbeat. */
     List<Nearby> findNearby(double latitude, double longitude, double radiusKm, int limit);
 
+    /** The last known position of a driver, if they are still being tracked. {latitude, longitude} */
+    Optional<double[]> position(UUID driverProfileId);
+
     /** When this driver's location was last received, if they are still being tracked. */
     Optional<Instant> lastSeen(UUID driverProfileId);
 

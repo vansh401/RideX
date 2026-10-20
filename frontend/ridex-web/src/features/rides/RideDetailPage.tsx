@@ -4,7 +4,7 @@ import { Link, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { api } from '@/api/client'
 import { toFriendlyError } from '@/api/errors'
-import type { Ride, TimelineEntry } from '@/api/types'
+import type { DriverPosition, LiveRideUpdate, Ride, TimelineEntry } from '@/api/types'
 import { useAuth } from '@/auth/useAuth'
 import { ConfirmDialog } from '@/components/brand/ConfirmDialog'
 import { PageHeader } from '@/components/brand/PageHeader'
@@ -25,6 +25,7 @@ import {
   riderCanCancel,
 } from '@/lib/rides'
 import { usePolling } from '@/lib/usePolling'
+import { useRealtime, useSubscription } from '@/realtime/useRealtime'
 import { FareBreakdown } from './FareBreakdown'
 import { RideProgress } from './RideProgress'
 import { RatingForm } from './RatingForm'
@@ -39,12 +40,41 @@ export function RideDetailPage() {
   const [busy, setBusy] = useState(false)
   const [timeline, setTimeline] = useState<TimelineEntry[]>([])
 
+  const { state: connection } = useRealtime()
+  const live = connection === 'live'
+
+  // While the live connection works, changes are PUSHED to us, so the periodic refresh is only a safety net
+  // (slow). If the connection drops, we go back to asking every few seconds, so nothing is ever missed.
   const { data: ride, error, loading, refresh } = usePolling<Ride>(
     async () => (await api.get<Ride>(`/api/rides/${rideId}`)).data,
-    { intervalMs: 4000, enabled: Boolean(rideId) },
+    { intervalMs: live ? 20_000 : 4000, enabled: Boolean(rideId) },
   )
 
+  // The push says "ride X changed"; the details come from the REST API (it knows what this person may see)
+  useSubscription<LiveRideUpdate>('/user/queue/ride-updates', (update) => {
+    if (update.rideId === rideId) void refresh()
+  })
+
   const status = ride?.status
+  const driverOnTheWay =
+    role !== 'DRIVER' && (status === 'DRIVER_ACCEPTED' || status === 'DRIVER_ARRIVED' || status === 'RIDE_STARTED')
+
+  // The driver's position: the last known one first, then every update the driver's app streams
+  const [driverPosition, setDriverPosition] = useState<DriverPosition | null>(null)
+  useSubscription<DriverPosition>(`/topic/rides/${rideId}/location`, (position) => setDriverPosition(position), driverOnTheWay && Boolean(rideId))
+  useEffect(() => {
+    if (!driverOnTheWay || !rideId) return
+    let cancelled = false
+    api
+      .get<DriverPosition | ''>(`/api/rides/${rideId}/driver-location`)
+      .then((response) => {
+        if (!cancelled && response.data) setDriverPosition(response.data)
+      })
+      .catch(() => undefined)
+    return () => {
+      cancelled = true
+    }
+  }, [driverOnTheWay, rideId])
   // The audit trail is reloaded whenever the status changes
   useEffect(() => {
     if (!rideId || !status) return
@@ -56,11 +86,15 @@ export function RideDetailPage() {
 
   const markers = useMemo<MapMarker[]>(() => {
     if (!ride) return []
-    return [
+    const list: MapMarker[] = [
       { id: 'pickup', kind: 'pickup', latitude: ride.pickup.latitude, longitude: ride.pickup.longitude },
       { id: 'dropoff', kind: 'dropoff', latitude: ride.dropoff.latitude, longitude: ride.dropoff.longitude },
     ]
-  }, [ride])
+    if (driverOnTheWay && driverPosition) {
+      list.push({ id: 'driver', kind: 'driver', latitude: driverPosition.latitude, longitude: driverPosition.longitude })
+    }
+    return list
+  }, [ride, driverOnTheWay, driverPosition])
 
   async function act(action: 'arrived' | 'start' | 'complete', done: string) {
     setBusy(true)

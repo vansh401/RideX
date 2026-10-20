@@ -33,6 +33,12 @@
 	</properties>
 	<dependencies>
 
+		<!-- WebSocket + STOMP: Phase 5 (live ride updates, driver location streaming, notifications) -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-websocket</artifactId>
+		</dependency>
+
 		<!-- Redis: Phase 4 (tokens with expiry, caching, driver locations, locks, rate limits) -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>

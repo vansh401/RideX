@@ -97,6 +97,19 @@ public class RedisDriverLocationIndex implements DriverLocationIndex {
     }
 
     @Override
+    public Optional<double[]> position(UUID driverProfileId) {
+        if (redis.opsForValue().get(RedisKeys.driverHeartbeat(driverProfileId)) == null) {
+            return Optional.empty();   // no heartbeat: the last position is too old to trust
+        }
+        List<Point> points = redis.opsForGeo().position(RedisKeys.DRIVER_GEO, driverProfileId.toString());
+        if (points == null || points.isEmpty() || points.get(0) == null) {
+            return Optional.empty();
+        }
+        // Redis stores (longitude, latitude); callers get {latitude, longitude}
+        return Optional.of(new double[] {points.get(0).getY(), points.get(0).getX()});
+    }
+
+    @Override
     public Optional<Instant> lastSeen(UUID driverProfileId) {
         String millis = redis.opsForValue().get(RedisKeys.driverHeartbeat(driverProfileId));
         return millis == null ? Optional.empty() : Optional.of(Instant.ofEpochMilli(Long.parseLong(millis)));

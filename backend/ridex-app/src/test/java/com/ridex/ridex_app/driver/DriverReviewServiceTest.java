@@ -31,7 +31,8 @@ class DriverReviewServiceTest {
     private final DriverDocumentService documentService = mock(DriverDocumentService.class);
     private final VehicleService vehicleService = mock(VehicleService.class);
     private final DriverReviewService service =
-            new DriverReviewService(profileRepository, documentRepository, documentService, vehicleService);
+            new DriverReviewService(profileRepository, documentRepository, documentService, vehicleService,
+                    mock(com.ridex.ridex_app.notification.NotificationService.class));
 
     private final UUID adminId = UUID.randomUUID();
     private final User user = new User("Ravi Kumar", "ravi@example.com", "+919812345678", "hash", Role.DRIVER);

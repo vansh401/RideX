@@ -52,6 +52,9 @@ public class SecurityConfig {
                 .formLogin(form -> form.disable())
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**", "/api/health").permitAll()
+                        // The WebSocket handshake itself is open; the STOMP CONNECT frame is authenticated with the
+                        // JWT (see StompSecurityInterceptor), because browsers cannot set headers on a handshake
+                        .requestMatchers("/ws/**").permitAll()
                         // API docs. Disable them in production (springdoc.*.enabled=false)
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
@@ -65,7 +68,7 @@ public class SecurityConfig {
                                 "/api/rides/*/arrived", "/api/rides/*/start", "/api/rides/*/complete").hasRole("DRIVER")
                         .requestMatchers("/api/rides/*/cancel", "/api/rides/*/ratings").hasAnyRole("RIDER", "DRIVER")
                         .requestMatchers(HttpMethod.GET, "/api/rides", "/api/rides/current").hasAnyRole("RIDER", "DRIVER")
-                        .requestMatchers(HttpMethod.GET, "/api/rides/*", "/api/rides/*/timeline").hasAnyRole("RIDER", "DRIVER", "ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/rides/*", "/api/rides/*/timeline", "/api/rides/*/driver-location").hasAnyRole("RIDER", "DRIVER", "ADMIN")
                         .requestMatchers("/api/drivers/**").hasRole("DRIVER")
                         .anyRequest().authenticated())
                 // Run our JWT filter before Spring's username/password filter position

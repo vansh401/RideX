@@ -36,6 +36,9 @@ const AdminDriversPage = lazy(() => import('@/features/admin/AdminDriversPage').
 const AdminDriverDetailPage = lazy(() => import('@/features/admin/AdminDriversPage').then((m) => ({ default: m.AdminDriverDetailPage })))
 const AdminUsersPage = lazy(() => import('@/features/admin/AdminUsersPage').then((m) => ({ default: m.AdminUsersPage })))
 const AdminVehiclesPage = lazy(() => import('@/features/admin/AdminVehiclesPage').then((m) => ({ default: m.AdminVehiclesPage })))
+const NotificationsPage = lazy(() =>
+  import('@/features/notifications/NotificationsPage').then((m) => ({ default: m.NotificationsPage })),
+)
 const ForbiddenPage = lazy(() => import('@/features/app/StatusPages').then((m) => ({ default: m.ForbiddenPage })))
 
 function App() {
@@ -67,6 +70,7 @@ function App() {
           <Route element={<AppShell />}>
             <Route path="/dashboard" element={<DashboardRedirect />} />
             <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/notifications" element={<NotificationsPage />} />
             <Route path="/forbidden" element={<ForbiddenPage />} />
             <Route path="/rides/:rideId" element={<RideDetailPage />} />
 

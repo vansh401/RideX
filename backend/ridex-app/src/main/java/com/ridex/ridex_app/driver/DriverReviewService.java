@@ -11,8 +11,11 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.ridex.ridex_app.common.AfterCommit;
 import com.ridex.ridex_app.common.ConflictException;
 import com.ridex.ridex_app.common.PageResponse;
+import com.ridex.ridex_app.notification.NotificationService;
+import com.ridex.ridex_app.notification.NotificationType;
 import com.ridex.ridex_app.common.Paging;
 import com.ridex.ridex_app.common.ResourceNotFoundException;
 
@@ -24,15 +27,18 @@ public class DriverReviewService {
     private final DriverDocumentRepository documentRepository;
     private final DriverDocumentService documentService;
     private final VehicleService vehicleService;
+    private final NotificationService notifications;
 
     public DriverReviewService(DriverProfileRepository profileRepository,
                                DriverDocumentRepository documentRepository,
                                DriverDocumentService documentService,
-                               VehicleService vehicleService) {
+                               VehicleService vehicleService,
+                               NotificationService notifications) {
         this.profileRepository = profileRepository;
         this.documentRepository = documentRepository;
         this.documentService = documentService;
         this.vehicleService = vehicleService;
+        this.notifications = notifications;
     }
 
     /** Oldest application first, so nobody waits forever. */
@@ -72,6 +78,9 @@ public class DriverReviewService {
             throw new ConflictException("Cannot approve: the licence has expired");
         }
         profile.approve(adminId, Instant.now());
+        UUID driverUserId = profile.getUser().getId();
+        AfterCommit.run(() -> notifications.notify(driverUserId, NotificationType.DRIVER_APPROVED,
+                "You are approved to drive", "Add an active vehicle and go online to start receiving rides.", null));
         return detail(profileId);
     }
 
@@ -79,6 +88,10 @@ public class DriverReviewService {
     public AdminDriverDetail reject(UUID adminId, UUID profileId, String reason) {
         DriverProfile profile = load(profileId);
         profile.reject(adminId, reason.trim(), Instant.now());
+        UUID driverUserId = profile.getUser().getId();
+        String why = reason.trim();
+        AfterCommit.run(() -> notifications.notify(driverUserId, NotificationType.DRIVER_REJECTED,
+                "Your application was not accepted", why, null));
         return detail(profileId);
     }
 
