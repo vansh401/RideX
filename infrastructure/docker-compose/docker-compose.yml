@@ -1,4 +1,61 @@
+# RideX: the whole system.
+#
+#   First time:   .\scripts\docker-init.ps1                       (creates the secret files, see below)
+#   Run it all:   docker compose up -d --build                    (from this folder)  ->  http://localhost:3000
+#   Only the infrastructure, to run the Java services from your IDE or scripts\start-services.ps1:
+#                 docker compose up -d postgres redis kafka mailpit
+#
+# Read docs/docker-concepts.md for the ideas behind this file and docs/phase-9-review.md for how to run and check it.
+#
+# THE SHAPE
+#
+#   browser -> web (nginx :3000) -> gateway (:8000) -> core / notification / payment / pricing / analytics
+#                                                          \-> postgres, redis, kafka  (never reachable from outside)
+#
+# Two networks keep it tidy: "edge" (only web and gateway) and "internal" (everything the browser must never touch directly).
+# Only the web container, the gateway and the developer tools publish a port on your machine, and always on 127.0.0.1, so other
+# computers on your network cannot reach them.
+
+# ---------------------------------------------------------------------------------------------------------------------------
+# Shared settings, written once and reused below (YAML anchors). Change them here, they change for every Java service.
+# ---------------------------------------------------------------------------------------------------------------------------
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"      # a container's log is a file on disk: without a limit it grows until the disk is full
+    max-file: "3"
+
+x-java-service: &java-service
+  restart: unless-stopped
+  init: true                          # a tiny init process (PID 1) that forwards signals and reaps zombie processes
+  read_only: true                     # the container's filesystem cannot be written to ...
+  tmpfs:
+    - /tmp                            # ... except this in-memory scratch folder (Tomcat and the JVM need it)
+  cap_drop:
+    - ALL                             # no Linux capabilities: a web service needs none
+  security_opt:
+    - no-new-privileges:true          # a process can never gain more rights than it started with
+  logging: *logging
+
+x-java-environment: &java-environment
+  # Hostnames are SERVICE NAMES: Docker's built-in DNS turns "postgres" into that container's address on the network.
+  REDIS_HOST: redis
+  KAFKA_BOOTSTRAP: kafka:29092
+  JWKS_URI: http://core:8080/.well-known/jwks.json
+  # Reads every file in /run/secrets as a configuration value named after the file: DB_PASSWORD, SERVICE_TOKEN. The Spring properties
+  # already say ${DB_PASSWORD} and ${SERVICE_TOKEN}, so nothing in the application changes. "optional:" = no error when not mounted.
+  SPRING_CONFIG_IMPORT: "optional:configtree:/run/secrets/"
+
+x-java-health: &java-health
+  interval: 15s
+  timeout: 5s
+  retries: 6
+  start_period: 120s                  # Spring Boot needs a while to start; failures during this time are not counted
+
 services:
+  # =========================================================================================================================
+  # Infrastructure (unchanged purpose, now with a network and tighter settings)
+  # =========================================================================================================================
   postgres:
     image: postgres:17
     container_name: ridex-postgres
@@ -7,9 +64,11 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"         # for your IDE / psql. Remove this line in an environment where nobody should connect by hand
     volumes:
       - ridex_pgdata:/var/lib/postgresql/data
+    networks: [internal]
+    logging: *logging
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
@@ -21,11 +80,14 @@ services:
     container_name: ridex-redis
     # --maxmemory with volatile-ttl: when memory is full, Redis may delete only keys that have an
     # expiry (old tokens, counters). The driver GEO index has none, so it is never evicted.
-    command: ["redis-server", "--maxmemory", "128mb", "--maxmemory-policy", "volatile-ttl"]
+    command: ["redis-server", "--maxmemory", "96mb", "--maxmemory-policy", "volatile-ttl"]
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     volumes:
       - ridex_redisdata:/data
+    networks: [internal]
+    logging: *logging
+    mem_limit: 160m
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -36,38 +98,240 @@ services:
     image: apache/kafka:3.9.1
     container_name: ridex-kafka
     # One broker that is also its own controller (KRaft mode: no ZooKeeper). Fine for development; production
-    # runs at least three brokers. The heap is capped so it does not eat your laptop.
+    # runs at least three brokers.
+    #
+    # TWO LISTENERS. A listener is an address Kafka accepts connections on, and it tells every client "reach me at THIS address".
+    #   INTERNAL  kafka:29092      for the services inside the Docker network
+    #   EXTERNAL  localhost:9092   for programs on your own machine (IDE, scripts\start-services.ps1)
+    # With only one address, one of the two kinds of client would be told an address that does not work for it.
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_LISTENERS: INTERNAL://:29092,EXTERNAL://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:29092,EXTERNAL://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
-      KAFKA_HEAP_OPTS: "-Xms256m -Xmx512m"
+      KAFKA_HEAP_OPTS: "-Xms192m -Xmx384m"
     ports:
-      - "9092:9092"
+      - "127.0.0.1:9092:9092"
     volumes:
       - ridex_kafkadata:/var/lib/kafka/data
+    networks: [internal]
+    logging: *logging
+    mem_limit: 768m
     healthcheck:
       test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 > /dev/null 2>&1"]
       interval: 10s
       timeout: 10s
       retries: 12
+      start_period: 30s
 
   mailpit:
-    image: axllent/mailpit:latest
+    image: axllent/mailpit:v1.29
     container_name: ridex-mailpit
     ports:
-      - "1025:1025"   # SMTP: where the app sends mail
-      - "8025:8025"   # web inbox: where you read it
+      - "127.0.0.1:1025:1025"         # SMTP: where the app sends mail
+      - "127.0.0.1:8025:8025"         # web inbox: where you read it
+    networks: [internal]
+    logging: *logging
+    mem_limit: 96m
+
+  # =========================================================================================================================
+  # The Java services. All six are built from the SAME Dockerfile; only the build arguments differ.
+  # =========================================================================================================================
+  core:
+    <<: *java-service
+    image: ridex/core:${RIDEX_TAG:-dev}
+    container_name: ridex-core
+    build:
+      context: ../../backend
+      args: {MODULE: ridex-app, PORT: "8080"}
+    environment:
+      <<: *java-environment
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/ridex_db
+      SPRING_MAIL_HOST: mailpit
+      PRICING_URL: http://pricing:8083
+      # Links in e-mails, and the websites allowed to open a WebSocket
+      RIDEX_FRONTEND_BASE_URL: http://localhost:3000
+      RIDEX_WEBSOCKET_ALLOWED_ORIGINS: http://localhost:3000,http://localhost:5173
+      # First admin: created only if none exists. Put them in the git-ignored .env file, never in this file.
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+    secrets: [DB_PASSWORD, SERVICE_TOKEN]
+    volumes:
+      - core_data:/app/data           # the token signing key and uploaded driver documents must survive a restart
+    networks: [internal]
+    mem_limit: 512m
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+      kafka: {condition: service_healthy}
+    healthcheck:
+      <<: *java-health
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:8080/api/health"]
+
+  notification:
+    <<: *java-service
+    image: ridex/notification:${RIDEX_TAG:-dev}
+    container_name: ridex-notification
+    build:
+      context: ../../backend
+      args: {MODULE: notification-service, PORT: "8081"}
+    environment:
+      <<: *java-environment
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/notification_db
+    secrets: [DB_PASSWORD]
+    networks: [internal]
+    mem_limit: 384m
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+      kafka: {condition: service_healthy}
+    healthcheck:
+      <<: *java-health
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:8081/actuator/health"]
+
+  payment:
+    <<: *java-service
+    image: ridex/payment:${RIDEX_TAG:-dev}
+    container_name: ridex-payment
+    build:
+      context: ../../backend
+      args: {MODULE: payment-service, PORT: "8082"}
+    environment:
+      <<: *java-environment
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/payment_db
+    secrets: [DB_PASSWORD]
+    networks: [internal]
+    mem_limit: 384m
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+      kafka: {condition: service_healthy}
+    healthcheck:
+      <<: *java-health
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:8082/actuator/health"]
+
+  pricing:
+    <<: *java-service
+    image: ridex/pricing:${RIDEX_TAG:-dev}
+    container_name: ridex-pricing
+    build:
+      context: ../../backend
+      args: {MODULE: pricing-service, PORT: "8083"}
+    environment:
+      <<: *java-environment
+    secrets: [SERVICE_TOKEN]          # no database, so no DB password
+    networks: [internal]
+    mem_limit: 256m
+    depends_on:
+      redis: {condition: service_healthy}
+    healthcheck:
+      <<: *java-health
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:8083/actuator/health"]
+
+  analytics:
+    <<: *java-service
+    image: ridex/analytics:${RIDEX_TAG:-dev}
+    container_name: ridex-analytics
+    build:
+      context: ../../backend
+      args: {MODULE: analytics-service, PORT: "8084"}
+    environment:
+      <<: *java-environment
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/analytics_db
+    secrets: [DB_PASSWORD]
+    networks: [internal]
+    mem_limit: 384m
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+      kafka: {condition: service_healthy}
+    healthcheck:
+      <<: *java-health
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:8084/actuator/health"]
+
+  gateway:
+    <<: *java-service
+    image: ridex/gateway:${RIDEX_TAG:-dev}
+    container_name: ridex-gateway
+    build:
+      context: ../../backend
+      args: {MODULE: api-gateway, PORT: "8000"}
+    environment:
+      <<: *java-environment
+      CORE_URL: http://core:8080
+      CORE_WS_URL: ws://core:8080
+      NOTIFICATION_URL: http://notification:8081
+      PAYMENT_URL: http://payment:8082
+      PRICING_URL: http://pricing:8083
+      ANALYTICS_URL: http://analytics:8084
+      GATEWAY_ALLOWED_ORIGINS: http://localhost:3000,http://localhost:5173
+      # The web container (nginx) sits in front of the gateway and reports the real client in X-Forwarded-For. The gateway believes that
+      # header ONLY for connections from these addresses (the private ranges Docker networks use).
+      GATEWAY_TRUSTED_PROXIES: '172[.](1[6-9]|2[0-9]|3[01])[.].*|10[.].*|192[.]168[.].*'
+    ports:
+      - "127.0.0.1:8000:8000"         # so npm run dev (frontend on your machine) and curl can reach the gateway directly
+    networks: [edge, internal]
+    mem_limit: 320m
+    depends_on:
+      redis: {condition: service_healthy}
+      core: {condition: service_healthy}
+    healthcheck:
+      <<: *java-health
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:8000/actuator/health"]
+
+  # =========================================================================================================================
+  # The website
+  # =========================================================================================================================
+  web:
+    image: ridex/web:${RIDEX_TAG:-dev}
+    container_name: ridex-web
+    build:
+      context: ../../frontend/ridex-web
+    restart: unless-stopped
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    logging: *logging
+    ports:
+      - "127.0.0.1:3000:8080"         # http://localhost:3000
+    networks: [edge]
+    mem_limit: 64m
+    depends_on:
+      gateway: {condition: service_healthy}   # nginx resolves "gateway" when it starts, so it must exist first
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+networks:
+  edge:
+  internal:
 
 volumes:
   ridex_pgdata:
   ridex_redisdata:
   ridex_kafkadata:
+  core_data:
+
+# SECRETS. Compose mounts each as a read-only FILE at /run/secrets/<name> inside the containers that list it. They are not in the
+# image, not in `docker inspect` output and not in the process environment. The files are created by scripts\docker-init.ps1 into
+# the git-ignored folder ./secrets.
+secrets:
+  DB_PASSWORD:
+    file: ./secrets/DB_PASSWORD
+  SERVICE_TOKEN:
+    file: ./secrets/SERVICE_TOKEN

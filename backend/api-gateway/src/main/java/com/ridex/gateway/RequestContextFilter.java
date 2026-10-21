@@ -1,6 +1,5 @@
 package com.ridex.gateway;
 
-import java.net.InetSocketAddress;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
@@ -42,8 +41,10 @@ public class RequestContextFilter implements WebFilter {
 
     private final PathRules blocked;
     private final PathRules publicPaths;
+    private final ClientAddress clientAddress;
 
-    public RequestContextFilter(GatewayProperties properties) {
+    public RequestContextFilter(GatewayProperties properties, ClientAddress clientAddress) {
+        this.clientAddress = clientAddress;
         this.blocked = new PathRules(properties.blockedPaths());
         this.publicPaths = new PathRules(properties.publicPaths());
     }
@@ -56,8 +57,7 @@ public class RequestContextFilter implements WebFilter {
 
         String supplied = request.getHeaders().getFirst(REQUEST_ID);
         String requestId = supplied != null && SAFE_ID.matcher(supplied).matches() ? supplied : UUID.randomUUID().toString();
-        InetSocketAddress peer = request.getRemoteAddress();
-        String client = peer == null || peer.getAddress() == null ? "unknown" : peer.getAddress().getHostAddress();
+        String client = clientAddress.of(request);
 
         ServerWebExchange clean = exchange.mutate().request(r -> r.headers(h -> {
             h.remove(USER_ID);

@@ -26,3 +26,6 @@ logs/
 # JVM crash dumps
 hs_err_pid*.log
 replay_pid*.log
+
+# Docker secret files created by scripts/docker-init.ps1
+infrastructure/docker-compose/secrets/

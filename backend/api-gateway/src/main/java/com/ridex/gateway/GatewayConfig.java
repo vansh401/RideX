@@ -1,6 +1,5 @@
 package com.ridex.gateway;
 
-import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyFactory;
 import java.security.interfaces.RSAPublicKey;
@@ -48,10 +47,9 @@ public class GatewayConfig {
      * (Behind a load balancer, you would configure the balancer's address as trusted and read the header it sets.)
      */
     @Bean
-    KeyResolver clientAddressKeyResolver() {
+    KeyResolver clientAddressKeyResolver(ClientAddress clientAddress) {
         return exchange -> {
-            InetSocketAddress peer = exchange.getRequest().getRemoteAddress();
-            String client = peer == null || peer.getAddress() == null ? "unknown" : peer.getAddress().getHostAddress();
+            String client = clientAddress.of(exchange.getRequest());
             // One bucket per client PER ROUTE: hammering the login route must not use up the budget for the rest of the API
             Route route = exchange.getAttribute(ServerWebExchangeUtils.GATEWAY_ROUTE_ATTR);
             return Mono.just(client + "|" + (route == null ? "none" : route.getId()));

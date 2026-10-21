@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.vite/
+*.log
+.env
+.env.*
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+Dockerfile
+.dockerignore

@@ -1,0 +1,26 @@
+# Everything listed here is NOT sent to Docker as build input: smaller context, faster builds, and no secrets baked into images.
+
+# build output and local run files
+**/target/
+**/data/
+**/logs/
+**/*.log
+**/hs_err_pid*
+**/replay_pid*
+
+# secrets and keys must never enter an image
+**/*.pem
+**/*.key
+**/.env
+**/secrets/
+
+# IDE and OS files
+**/.idea/
+**/.vscode/
+**/*.iml
+**/.DS_Store
+**/Thumbs.db
+
+# the Dockerfile itself is not needed inside the build
+Dockerfile
+.dockerignore

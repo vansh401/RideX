@@ -113,6 +113,9 @@ ridex:
     # Where tokens are verified. In normal operation the core's public-key endpoint; keys can rotate without touching the gateway.
     jwks-uri: ${JWKS_URI:http://localhost:8080/.well-known/jwks.json}
     issuer: ridex
+    # Proxies we run in front of the gateway, as a regular expression on their address. Only connections from these may say who the
+    # real client is (X-Forwarded-For). Empty = nobody. Docker Compose sets it to the private network ranges (the nginx container).
+    trusted-proxies: ${GATEWAY_TRUSTED_PROXIES:}
     # Paths that need no token. Everything else needs a valid one. (method "*" = any)
     public-paths:
       - "*:/api/auth/**"

@@ -80,7 +80,7 @@ Solid lines are work; dotted lines are the token machinery. Every service verifi
 | `/api/fares/**` | pricing |
 | `/api/admin/events/**`, `/api/admin/analytics/**` | analytics |
 
-Since Phase 8 the **api-gateway** (port 8000) does this routing; the Vite proxy only forwards `/api` and `/ws` to it, so the browser sees one origin. See [gateway-concepts.md](gateway-concepts.md). In production a reverse proxy serves the frontend and forwards to the gateway; a minimal nginx example:
+Since Phase 8 the **api-gateway** (port 8000) does this routing; the Vite proxy only forwards `/api` and `/ws` to it, so the browser sees one origin. See [gateway-concepts.md](gateway-concepts.md). Since Phase 9 the **web** container (nginx) does this in Docker: it serves the built frontend and forwards `/api` and `/ws` to the gateway (the real file is `frontend/ridex-web/nginx.conf`; see [docker-concepts.md](docker-concepts.md)). In essence:
 
 ```nginx
 location /api { proxy_pass http://gateway:8000; }
@@ -105,7 +105,7 @@ location /    { root /usr/share/nginx/html; try_files $uri /index.html; }   # th
 
 ## 7. Ports and start order
 
-1. Docker: `docker compose up -d` (PostgreSQL, Redis, Kafka).
+1. Docker: `docker compose up -d postgres redis kafka mailpit` (infrastructure only), or `docker compose up -d --build` for the whole system in containers (see [phase-9-review.md](phase-9-review.md)). Java services started this way are not published on 8080 to 8084; only the web (3000) and the gateway (8000) are.
 2. **core** first (then the gateway, which fetches the same public key): it creates the signing key and publishes the public key the others fetch.
 3. Then pricing, notification, payment, analytics in any order. (A service started before the core simply retries its key fetch on the first request.)
 4. `npm run dev` in `frontend/ridex-web`.

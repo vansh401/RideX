@@ -16,6 +16,8 @@ public record GatewayProperties(
         List<String> publicPaths,
         /** Paths that are never reachable from outside, even with a token. */
         List<String> blockedPaths,
+        /** Regular expression of the addresses of proxies we run in front of the gateway (see ClientAddress). Empty = none. */
+        String trustedProxies,
         List<Service> services
 ) {
     public record Service(String name, String healthUrl) {
