@@ -1,0 +1,107 @@
+# RideX observability: metrics (Prometheus + Grafana), alerts (Alertmanager), traces (Jaeger), JSON logs.
+#
+# This file is an OVERLAY: it is merged with the main compose file, which stays unchanged.
+#
+#   .\scripts\obs-up.ps1                       (creates the Grafana password file, then runs both files together)
+#   docker compose -f ..\docker-compose\docker-compose.yml -f docker-compose.observability.yml up -d     (the same by hand)
+#
+# What it adds, where you look at it (all on 127.0.0.1 only):
+#   Grafana       http://localhost:3001    dashboards ("RideX overview"). Anyone on this computer can view; the admin login is in
+#                                          infrastructure/docker-compose/secrets/GRAFANA_ADMIN_PASSWORD (git-ignored), user "admin"
+#   Prometheus    http://localhost:9090    metrics, alert rules (Alerts tab), scrape targets (Status > Targets)
+#   Alertmanager  http://localhost:9093    who is told about firing alerts (messages arrive in Mailpit, http://localhost:8025)
+#   Jaeger        http://localhost:16686   traces: pick a service, find a trace, see the spans of one request across services
+#
+# What it changes in the six Java services: SPRING_PROFILES_ACTIVE=json (one JSON object per log line), every request traced
+# (TRACING_SAMPLING=1.0; production would sample 1 to 10 %), spans sent to Jaeger.
+
+x-observed: &observed
+  SPRING_PROFILES_ACTIVE: json
+  TRACING_SAMPLING: "1.0"
+  OTEL_TRACES_ENDPOINT: http://jaeger:4318/v1/traces
+
+services:
+  core: {environment: *observed}
+  notification: {environment: *observed}
+  payment: {environment: *observed}
+  pricing: {environment: *observed}
+  analytics: {environment: *observed}
+  gateway: {environment: *observed}
+
+  prometheus:
+    image: prom/prometheus:v3.15.1
+    container_name: ridex-prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=2d      # a laptop does not need more; production keeps weeks or months (or ships to long-term storage)
+    volumes:
+      - ../observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ../observability/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "127.0.0.1:9090:9090"
+    networks: [internal]
+    restart: unless-stopped
+    mem_limit: 256m
+    logging: {driver: json-file, options: {max-size: "10m", max-file: "3"}}
+
+  alertmanager:
+    image: prom/alertmanager:v0.34.1
+    container_name: ridex-alertmanager
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/alertmanager
+    volumes:
+      - ../observability/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager_data:/alertmanager
+    ports:
+      - "127.0.0.1:9093:9093"
+    networks: [internal]
+    restart: unless-stopped
+    mem_limit: 64m
+    depends_on: [mailpit]
+    logging: {driver: json-file, options: {max-size: "10m", max-file: "3"}}
+
+  grafana:
+    image: grafana/grafana:13.0.11
+    container_name: ridex-grafana
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD__FILE: /run/secrets/GRAFANA_ADMIN_PASSWORD   # read from the secret file: no password in this file
+      GF_AUTH_ANONYMOUS_ENABLED: "true"            # viewing needs no login ...
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer           # ... and can change nothing. The port is bound to 127.0.0.1 only.
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+    secrets: [GRAFANA_ADMIN_PASSWORD]
+    volumes:
+      - ../observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "127.0.0.1:3001:3000"                      # 3000 is the website
+    networks: [internal]
+    restart: unless-stopped
+    mem_limit: 320m
+    depends_on: [prometheus]
+    logging: {driver: json-file, options: {max-size: "10m", max-file: "3"}}
+
+  jaeger:
+    image: jaegertracing/jaeger:2.22.0
+    container_name: ridex-jaeger
+    # Receives spans from the services on OTLP/HTTP port 4318 (inside the network only) and keeps them IN MEMORY (they are gone after a restart).
+    ports:
+      - "127.0.0.1:16686:16686"
+    networks: [internal]
+    restart: unless-stopped
+    mem_limit: 384m
+    logging: {driver: json-file, options: {max-size: "10m", max-file: "3"}}
+
+volumes:
+  prometheus_data:
+  alertmanager_data:
+  grafana_data:
+
+secrets:
+  GRAFANA_ADMIN_PASSWORD:
+    file: ./secrets/GRAFANA_ADMIN_PASSWORD

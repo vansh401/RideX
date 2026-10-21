@@ -138,6 +138,7 @@ class PermissionMatrixIntegrationTest extends AbstractIntegrationTest {
             // ---- Kubernetes probes: public, and they show no details ----
             "GET,/actuator/health/liveness,NONE,200",
             "GET,/actuator/health/readiness,NONE,200",
+            "GET,/actuator/prometheus,NONE,200",
             "GET,/actuator/env,ADMIN,404",
             "GET,/actuator/env,NONE,401",
 

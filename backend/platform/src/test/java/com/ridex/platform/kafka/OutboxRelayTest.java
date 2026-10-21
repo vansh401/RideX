@@ -19,6 +19,8 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 import org.springframework.transaction.PlatformTransactionManager;
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+
 import com.ridex.platform.contracts.Topics;
 
 /**
@@ -31,12 +33,13 @@ class OutboxRelayTest {
     @SuppressWarnings("unchecked")
     private final KafkaTemplate<String, String> kafka = mock(KafkaTemplate.class);
     private final OutboxStore store = mock(OutboxStore.class);
-    private final OutboxRelay relay = new OutboxRelay(store, kafka, mock(PlatformTransactionManager.class), 100);
+    private final SimpleMeterRegistry registry = new SimpleMeterRegistry();
+    private final OutboxRelay relay = new OutboxRelay(store, kafka, mock(PlatformTransactionManager.class), 100, new TraceContextCarrier(null, null), registry);
 
     private static long seq = 0;
 
     private OutboxStore.Pending event(String key, String type) {
-        return new OutboxStore.Pending(++seq, UUID.randomUUID(), Topics.RIDE_EVENTS, key, type, "{}");
+        return new OutboxStore.Pending(++seq, UUID.randomUUID(), Topics.RIDE_EVENTS, key, type, "{}", null);
     }
 
     @SuppressWarnings("unchecked")
@@ -131,5 +134,17 @@ class OutboxRelayTest {
         assertThat(sent.getValue().key()).isEqualTo("ride-1");
         assertThat(new String(sent.getValue().headers().lastHeader("event-type").value())).isEqualTo("ride.status-changed");
         assertThat(new String(sent.getValue().headers().lastHeader("event-id").value())).isEqualTo(first.eventId().toString());
+    }
+
+    @Test
+    void confirmedAndFailedPublicationsAreCountedForTheDashboards() {
+        when(store.tryLockForRelay()).thenReturn(true);
+        when(store.findUnpublished(100)).thenReturn(List.of(event("ride-1", "a"), event("ride-1", "b")));
+        when(kafka.send(any(ProducerRecord.class))).thenReturn(ok(), broken());
+
+        relay.relayOnce();
+
+        assertThat(registry.get("ridex.outbox.published").counter().count()).isEqualTo(1.0);
+        assertThat(registry.get("ridex.outbox.publish.failures").counter().count()).isEqualTo(1.0);
     }
 }

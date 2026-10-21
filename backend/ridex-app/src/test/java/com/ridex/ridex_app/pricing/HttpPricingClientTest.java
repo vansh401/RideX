@@ -72,7 +72,7 @@ class HttpPricingClientTest {
         });
         server.start();
         client = new HttpPricingClient(new PricingProperties("http://localhost:" + server.getAddress().getPort(),
-                "the-shared-test-token", 300, 400, 2, 20, 6, 4, 50f, 1500));
+                "the-shared-test-token", 300, 400, 2, 20, 6, 4, 50f, 1500), io.micrometer.observation.ObservationRegistry.NOOP);
     }
 
     @AfterEach

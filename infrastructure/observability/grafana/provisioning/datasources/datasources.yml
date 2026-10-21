@@ -1,0 +1,14 @@
+# Grafana reads this at start-up and creates the data sources itself, so nothing has to be clicked together by hand.
+#
+# Traces are NOT a Grafana data source here on purpose: Grafana's built-in Jaeger plugin speaks Jaeger's old v1 query API, which Jaeger 2
+# no longer serves (it has /api/v3 only), so the data source would be permanently red. Use the Jaeger UI (link on the dashboard).
+apiVersion: 1
+datasources:
+  - name: Prometheus
+    uid: ridex-prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    jsonData:
+      timeInterval: 15s      # the scrape interval, so rate() windows are sized sensibly

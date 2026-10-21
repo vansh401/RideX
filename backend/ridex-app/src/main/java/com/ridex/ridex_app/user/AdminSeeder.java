@@ -11,6 +11,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.ridex.platform.web.LogContext;
+
 /**
  * Creates the first admin at startup from configuration (environment variables), because the
  * public register endpoint can never create one.
@@ -82,6 +84,6 @@ public class AdminSeeder implements ApplicationRunner {
         admin.activate();
         userRepository.save(admin);
 
-        log.info("Created initial admin account {}", normalisedEmail);
+        log.info("Created initial admin account {}", LogContext.maskEmail(normalisedEmail));
     }
 }

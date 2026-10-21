@@ -6,6 +6,7 @@ import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -15,6 +16,8 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtException;
 import org.springframework.web.filter.OncePerRequestFilter;
+
+import com.ridex.platform.web.LogContext;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -65,11 +68,16 @@ public class ServiceJwtAuthenticationFilter extends OncePerRequestFilter {
                 context.setAuthentication(new UsernamePasswordAuthenticationToken(
                         new ServicePrincipal(userId, role), null, List.of(new SimpleGrantedAuthority("ROLE_" + role))));
                 SecurityContextHolder.setContext(context);
+                MDC.put(LogContext.USER_ID, userId.toString());   // every log line of this request says who is acting
             } catch (JwtException | IllegalArgumentException | NullPointerException e) {
                 log.debug("Ignoring invalid bearer token: {}", e.getClass().getSimpleName());
                 SecurityContextHolder.clearContext();
             }
         }
-        chain.doFilter(request, response);
+        try {
+            chain.doFilter(request, response);
+        } finally {
+            MDC.remove(LogContext.USER_ID);   // threads are reused
+        }
     }
 }

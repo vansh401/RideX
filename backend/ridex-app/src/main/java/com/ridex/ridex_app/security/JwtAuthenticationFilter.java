@@ -6,6 +6,7 @@ import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
@@ -17,6 +18,7 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtException;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+import com.ridex.platform.web.LogContext;
 import com.ridex.ridex_app.user.Role;
 
 import jakarta.servlet.FilterChain;
@@ -81,6 +83,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 context.setAuthentication(
                         new UsernamePasswordAuthenticationToken(principal, null, authorities));
                 SecurityContextHolder.setContext(context);
+                MDC.put(LogContext.USER_ID, principal.id().toString());   // every log line of this request says who is acting
 
             } catch (JwtException | IllegalArgumentException ex) {
                 // Never log the token itself
@@ -89,7 +92,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             }
         }
 
-        filterChain.doFilter(request, response);
+        try {
+            filterChain.doFilter(request, response);
+        } finally {
+            MDC.remove(LogContext.USER_ID);   // threads are reused
+        }
     }
 
     private static long issuedAtMillis(Jwt jwt) {

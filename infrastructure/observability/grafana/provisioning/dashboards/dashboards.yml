@@ -1,0 +1,9 @@
+apiVersion: 1
+providers:
+  - name: RideX
+    folder: RideX
+    type: file
+    disableDeletion: true          # the files are the source of truth; changes made in the UI are not kept across restarts
+    allowUiUpdates: false
+    options:
+      path: /var/lib/grafana/dashboards

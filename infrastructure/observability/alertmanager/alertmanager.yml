@@ -1,0 +1,35 @@
+# ALERTMANAGER: Prometheus decides WHEN an alert fires; Alertmanager decides WHO is told and HOW OFTEN.
+# It groups related alerts into one message, waits a little so a burst becomes one email, repeats a still-firing alert only now and then,
+# and can silence alerts that are explained by a bigger one (inhibition).
+#
+# Here every alert becomes an email to Mailpit (http://localhost:8025), the development mail catcher. In production the receiver would be
+# a pager or chat tool (PagerDuty, Opsgenie, Slack) with credentials from a secret store, never written in this file.
+global:
+  smtp_smarthost: "mailpit:1025"
+  smtp_from: "alerts@ridex.local"
+  smtp_require_tls: false
+
+route:
+  receiver: team
+  group_by: [alertname, application]
+  group_wait: 10s          # wait a moment for sibling alerts before the first message
+  group_interval: 1m       # how soon new alerts of the same group are added to a message
+  repeat_interval: 4h      # remind about an alert that is still firing
+  routes:
+    - matchers: [severity="critical"]
+      receiver: team
+      repeat_interval: 1h
+
+receivers:
+  - name: team
+    email_configs:
+      - to: "oncall@ridex.local"
+        send_resolved: true
+        headers:
+          subject: '[{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{ .Alerts.Firing | len }}{{ end }}] {{ .CommonLabels.alertname }} {{ .CommonLabels.application }}'
+
+inhibit_rules:
+  # If a service is down, its error-rate and latency alerts are noise: the down alert already says it all.
+  - source_matchers: [alertname="ServiceDown"]
+    target_matchers: [severity=~"warning|critical"]
+    equal: [application]

@@ -23,6 +23,7 @@ import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
 import io.github.resilience4j.retry.Retry;
 import io.github.resilience4j.retry.RetryConfig;
+import io.micrometer.observation.ObservationRegistry;
 
 /**
  * A SYNCHRONOUS call to the pricing service (REST), because the rider is waiting for the answer: a ride cannot be created
@@ -52,11 +53,12 @@ public class HttpPricingClient implements PricingClient {
     private final String serviceToken;
     private final long retryAfterSeconds;
 
-    public HttpPricingClient(PricingProperties p) {
+    public HttpPricingClient(PricingProperties p, ObservationRegistry observations) {
         JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(
                 HttpClient.newBuilder().connectTimeout(Duration.ofMillis(p.connectTimeoutMs())).build());
         factory.setReadTimeout(Duration.ofMillis(p.readTimeoutMs()));
-        this.client = RestClient.builder().baseUrl(p.baseUrl()).requestFactory(factory).build();
+        // observationRegistry: the call becomes a span and carries the "traceparent" header, so the pricing service continues the same trace
+        this.client = RestClient.builder().baseUrl(p.baseUrl()).requestFactory(factory).observationRegistry(observations).build();
         this.circuitBreaker = CircuitBreaker.of("pricing", CircuitBreakerConfig.custom()
                 .slidingWindowSize(p.circuitWindow())
                 .minimumNumberOfCalls(p.circuitMinCalls())

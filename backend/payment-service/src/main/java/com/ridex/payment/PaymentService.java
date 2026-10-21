@@ -19,9 +19,13 @@ import com.ridex.platform.contracts.EventEnvelope;
 import com.ridex.platform.contracts.PaymentEventData;
 import com.ridex.platform.contracts.Topics;
 import com.ridex.platform.kafka.OutboxService;
+import com.ridex.platform.web.LogContext;
 import com.ridex.platform.web.PageResponse;
 import com.ridex.platform.web.Paging;
 import com.ridex.platform.web.ResourceNotFoundException;
+
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 
 /**
  * Charges riders for completed rides and tells everybody the result (as an event).
@@ -43,12 +47,18 @@ public class PaymentService {
     private final PaymentGateway gateway;
     private final OutboxService outbox;
     private final GatewayProperties gatewayProperties;
+    private final MeterRegistry metrics;
 
-    public PaymentService(PaymentRepository repository, PaymentGateway gateway, OutboxService outbox, GatewayProperties gatewayProperties) {
+    public PaymentService(PaymentRepository repository, PaymentGateway gateway, OutboxService outbox, GatewayProperties gatewayProperties,
+                          MeterRegistry metrics) {
         this.repository = repository;
         this.gateway = gateway;
         this.outbox = outbox;
         this.gatewayProperties = gatewayProperties;
+        this.metrics = metrics;
+        for (String outcome : new String[] {"succeeded", "failed", "gateway_unavailable"}) {
+            Counter.builder("ridex.payments").description("Payment attempts by outcome").tag("outcome", outcome).register(metrics);
+        }
     }
 
     /** Called when a ride completes. Safe to call twice for the same ride. */
@@ -102,12 +112,19 @@ public class PaymentService {
     }
 
     private void attempt(Payment payment) {
+        try (LogContext.Scope ignored = LogContext.ride(payment.getRideId())) {
+            attemptCharge(payment);
+        }
+    }
+
+    private void attemptCharge(Payment payment) {
         Instant now = Instant.now();
         PaymentGateway.ChargeResult result;
         try {
             result = gateway.charge(new PaymentGateway.ChargeRequest(
                     payment.getIdempotencyKey(), payment.getAmount(), payment.getCurrency(), "RideX ride " + payment.getRideId()));
         } catch (GatewayUnavailableException e) {
+            metrics.counter("ridex.payments", "outcome", "gateway_unavailable").increment();
             // NO answer: we do not know whether the gateway charged. Do not guess. Wait, then ask again with the same key.
             boolean gaveUp = payment.recordGatewayOutage(now, Duration.ofMillis(gatewayProperties.outageBackoffMs()), gatewayProperties.maxOutages());
             log.warn("Gateway did not answer for payment {} (outage {}){}", payment.getId(), payment.getGatewayOutages(),
@@ -122,6 +139,8 @@ public class PaymentService {
         } else {
             payment.markFailed(result.failureReason(), now);
         }
+        metrics.counter("ridex.payments", "outcome", result.success() ? "succeeded" : "failed").increment();
+        log.info("Payment {} for attempt {}", result.success() ? "succeeded" : "failed", payment.getAttempts());   // no amounts, no card or bank data
         publish(payment, result.success() ? EventEnvelope.PAYMENT_SUCCEEDED : EventEnvelope.PAYMENT_FAILED);
     }
 

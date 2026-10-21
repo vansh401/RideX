@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
+import com.ridex.platform.web.LogContext;
 import com.ridex.ridex_app.mail.EmailSender;
 
 /** Sends the verification email only after the database transaction has committed. */
@@ -31,7 +32,7 @@ public class VerificationEmailListener {
             emailSender.sendVerificationEmail(event.toEmail(), event.fullName(), url, event.otp());
         } catch (RuntimeException ex) {
             // The account exists; the user can ask for another link via /resend-verification
-            log.error("Could not send verification email to {}", event.toEmail(), ex);
+            log.error("Could not send verification email to {}", LogContext.maskEmail(event.toEmail()), ex);
         }
     }
 }

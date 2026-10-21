@@ -19,7 +19,7 @@ public class SecurityConfig {
     SecurityFilterChain securityFilterChain(HttpSecurity http, JwtDecoder decoder, RevocationChecker revocations, JsonMapper mapper) throws Exception {
         ServiceSecurity.baseline(http, decoder, revocations, mapper);
         http.authorizeHttpRequests(auth -> auth
-                .requestMatchers("/actuator/health/**", "/actuator/info").permitAll()
+                .requestMatchers("/actuator/health/**", "/actuator/info", "/actuator/prometheus").permitAll()
                 // The pretend gateway stands for somebody else's server: it has its own rules (an Idempotency-Key), not our tokens
                 .requestMatchers("/mock-gateway/**").permitAll()
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")

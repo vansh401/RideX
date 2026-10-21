@@ -54,6 +54,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/**", "/api/health").permitAll()
                         // Kubernetes probes (state of the application only; no details are shown)
                         .requestMatchers("/actuator/health/**").permitAll()
+                        // Metrics for Prometheus. Open INSIDE the network only: the gateway blocks /actuator/** and the ingress never routes it
+                        .requestMatchers("/actuator/prometheus").permitAll()
                         // The public half of the token signing key: other services read it to verify our tokens
                         .requestMatchers("/.well-known/jwks.json").permitAll()
                         // The WebSocket handshake itself is open; the STOMP CONNECT frame is authenticated with the

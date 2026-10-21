@@ -1,0 +1,101 @@
+# Unit tests for alerts.yml. `promtool test rules` feeds the fake series below, moves the clock, and checks which alerts fire.
+# Run:  scripts/obs-test-rules.ps1
+rule_files:
+  - alerts.yml
+
+evaluation_interval: 1m
+
+tests:
+  - name: a service that disappears raises ServiceDown after a minute
+    interval: 1m
+    input_series:
+      - series: 'up{job="ridex", application="payment-service", instance="payment:8082"}'
+        values: "1 1 1 0 0 0 0"
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: ServiceDown
+        exp_alerts: []
+      - eval_time: 5m
+        alertname: ServiceDown
+        exp_alerts:
+          - exp_labels: {severity: critical, job: ridex, application: payment-service, instance: "payment:8082"}
+            exp_annotations:
+              summary: "payment-service cannot be scraped"
+              description: "Prometheus has not been able to read payment:8082 for 1 minute. The service is down, or the network to it is."
+              action: "Check `docker compose ps` / `kubectl get pods`, then the service log (search the last lines for ERROR)."
+
+  - name: errors with real traffic fire, a handful of errors in a quiet service do not
+    interval: 1m
+    input_series:
+      # 10 requests per second, 1 per second fails: 10 % errors
+      - series: 'http_server_requests_seconds_count{application="ridex-app", status="200", uri="/api/rides"}'
+        values: "0+540x20"
+      - series: 'http_server_requests_seconds_count{application="ridex-app", status="500", uri="/api/rides"}'
+        values: "0+60x20"
+      # a quiet service: 0.02 requests per second, half of them fail
+      - series: 'http_server_requests_seconds_count{application="pricing-service", status="200", uri="/api/fares/estimate"}'
+        values: "0+1x20"
+      - series: 'http_server_requests_seconds_count{application="pricing-service", status="500", uri="/api/fares/estimate"}'
+        values: "0+1x20"
+    alert_rule_test:
+      - eval_time: 12m
+        alertname: HighErrorRate
+        exp_alerts:
+          - exp_labels: {severity: critical, application: ridex-app}
+            exp_annotations:
+              summary: "ridex-app: 10% of requests fail with 5xx"
+              description: "More than 5 % of the requests of ridex-app answered 5xx for 5 minutes (with real traffic, over 0.2 requests per second)."
+              action: "Open the Grafana dashboard 'RideX overview', then search the logs for level ERROR in this service, and open a failing trace in Jaeger."
+
+  - name: a growing outbox fires only after it stayed high for five minutes
+    interval: 1m
+    input_series:
+      - series: 'ridex_outbox_pending{application="ridex-app"}'
+        values: "0 0 150 150 150 150 150 150 150 0"
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: OutboxBacklog
+        exp_alerts: []
+      - eval_time: 8m
+        alertname: OutboxBacklog
+        exp_alerts:
+          - exp_labels: {severity: warning, application: ridex-app}
+            exp_annotations:
+              summary: "ridex-app: 150 events are waiting in the outbox"
+              description: "Events are saved but not reaching Kafka. Kafka may be down, or the relay is stuck. Nothing is lost, but payments, notifications and analytics are delayed."
+              action: "Check Kafka, then the relay log lines 'Could not publish outbox event'."
+      - eval_time: 9m30s
+        alertname: OutboxBacklog
+        exp_alerts: []
+
+  - name: any dead letter is reported at once
+    interval: 1m
+    input_series:
+      - series: 'ridex_dead_letters_total{application="payment-service", topic="ride-events"}'
+        values: "0 0 0 1 1 1"
+    alert_rule_test:
+      - eval_time: 4m
+        alertname: DeadLetters
+        exp_alerts:
+          - exp_labels: {severity: warning, application: payment-service}
+            exp_annotations:
+              summary: "payment-service moved messages to a dead-letter topic"
+              description: "A message failed all its retries. It is parked in a *.DLT topic and the consumer moved on."
+              action: "Read the dead letter (GET /api/admin/dead-letters on analytics), fix the cause, replay."
+
+  - name: a nearly full database pool warns after five minutes
+    interval: 1m
+    input_series:
+      - series: 'hikaricp_connections_active{application="ridex-app", pool="HikariPool-1"}'
+        values: "10+0x10"
+      - series: 'hikaricp_connections_max{application="ridex-app", pool="HikariPool-1"}'
+        values: "10+0x10"
+    alert_rule_test:
+      - eval_time: 7m
+        alertname: DatabasePoolNearlyFull
+        exp_alerts:
+          - exp_labels: {severity: warning, application: ridex-app}
+            exp_annotations:
+              summary: "ridex-app uses 100% of its database connections"
+              description: "When the pool is full, requests wait for a connection and latency explodes. It will become HighLatency soon."
+              action: "Look for slow queries or a leaked connection; scale out the service only if the database can take more connections."

@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
+import com.ridex.platform.web.LogContext;
 import com.ridex.ridex_app.mail.EmailSender;
 
 /** Sends the password reset email only after the database transaction has committed. */
@@ -31,7 +32,7 @@ public class PasswordResetEmailListener {
             emailSender.sendPasswordResetEmail(event.toEmail(), event.fullName(), url);
         } catch (RuntimeException ex) {
             // The user can simply ask for another link
-            log.error("Could not send password reset email to {}", event.toEmail(), ex);
+            log.error("Could not send password reset email to {}", LogContext.maskEmail(event.toEmail()), ex);
         }
     }
 }

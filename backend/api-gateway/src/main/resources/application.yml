@@ -24,6 +24,11 @@ spring:
     gateway:
       server:
         webflux:
+          # Phase 12: a span per proxied request, and the trace context is passed on to the service (one trace covers gateway + service)
+          observability:
+            enabled: true
+          metrics:
+            enabled: true
           # X-Forwarded-For tells services the real address of the caller. for-append=false REPLACES whatever the client sent instead of
           # adding to it: a client could otherwise pretend to be someone else by writing its own value there.
           # Spring Cloud Gateway's own X-Forwarded-* handling is replaced by ClientAddressHeadersFilter, which does one simple thing:
@@ -130,6 +135,7 @@ ridex:
       - "GET:/swagger-ui/**"
       - "GET:/swagger-ui.html"
       - "GET:/actuator/health/**"
+      - "GET:/actuator/prometheus"   # scraped by Prometheus inside the network; the ingress never routes /actuator, so it is not reachable from outside
     # Paths that exist inside the platform and must never be reachable from outside
     blocked-paths:
       - "/internal/**"
@@ -148,9 +154,36 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,prometheus
   endpoint:
     health:
       probes:
         enabled: true
+  # Phase 12 (observability)
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+        spring.cloud.gateway.requests: true
+      slo:
+        http.server.requests: 100ms,300ms,1s
+  # Traces: the id is created for every request (and put in the logs); only this share of requests is also SENT to the trace backend.
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLING:0.0}
+  opentelemetry:
+    tracing:
+      export:
+        otlp:
+          endpoint: ${OTEL_TRACES_ENDPOINT:http://localhost:4318/v1/traces}
+  # Metrics are PULLED by Prometheus; do not also push them over OTLP (the starter turns that on and it would fail every minute).
+  otlp:
+    metrics:
+      export:
+        enabled: false
 
+logging:
+  pattern:
+    level: "%5p [trace=%X{traceId:-}]"

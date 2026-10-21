@@ -21,7 +21,7 @@ public class SecurityConfig {
         ServiceSecurity.baseline(http, decoder, revocations, mapper);
         ServiceSecurity.acceptServiceToken(http, serviceToken);
         http.authorizeHttpRequests(auth -> auth
-                .requestMatchers("/actuator/health/**", "/actuator/info").permitAll()
+                .requestMatchers("/actuator/health/**", "/actuator/info", "/actuator/prometheus").permitAll()
                 // Two kinds of caller: a rider's browser (user token) and the core (service token)
                 .requestMatchers("/api/fares/estimate").hasRole("RIDER")
                 .requestMatchers("/internal/**").hasRole("SERVICE")

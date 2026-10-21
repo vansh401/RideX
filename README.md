@@ -4,9 +4,9 @@ Production-style ride-hailing platform (Uber/Ola-style) built to learn Java full
 distributed systems and DevOps.
 
 ## Stack
-Java 21 · Spring Boot 4 · PostgreSQL · Redis · Kafka · Flyway · Resilience4j · React + TypeScript · Docker + nginx + Kubernetes (kind, kustomize, HPA)
+Java 21 · Spring Boot 4 · PostgreSQL · Redis · Kafka · Flyway · Resilience4j · React + TypeScript · Docker + nginx + Kubernetes (kind, kustomize, HPA) · Micrometer, Prometheus, Grafana, OpenTelemetry, Jaeger
 
-## Architecture (after Phase 11)
+## Architecture (after Phase 12)
 
 One API gateway in front of a core application plus four extracted services, and a shared infrastructure library. Each service has its own database. Everything can run in Docker.
 
@@ -70,6 +70,18 @@ With the cluster from option C running (it needs about 3 to 3.5 GB; stop other c
 
 Learn it: [scaling concepts](docs/scaling-concepts.md), [phase 11 review](docs/phase-11-review.md).
 
+### Observability: metrics, dashboards, traces, alerts (Phase 12)
+
+Works on top of option A (Docker Compose). Stop the kind cluster first (`docker stop ridex-control-plane`); the monitoring containers and the system need about 3.5 GB in Docker's VM.
+
+1. `docker compose build` once in `infrastructure\docker-compose` (the images contain the Phase 12 code).
+2. `.\scripts\obs-up.ps1` (add `-Only core,gateway,pricing,payment,notification,web` on a small machine). It creates a random Grafana admin password in the git-ignored `infrastructure\docker-compose\secrets\` and starts the system plus Prometheus, Alertmanager, Grafana and Jaeger. The first run pulls about 450 MB of images.
+3. Look: **Grafana http://localhost:3001** (dashboard "RideX overview"), **Prometheus http://localhost:9090**, **Jaeger http://localhost:16686** (traces), **Mailpit http://localhost:8025** (alert emails), Alertmanager http://localhost:9093. Logs are JSON: `docker logs ridex-core`.
+4. Prove it: `.\scripts\obs-smoke.ps1` (add `-Alerts` to stop the pricing service and watch an alert email arrive; about 6 minutes). Check the alert rules without starting anything: `.\scripts\obs-test-rules.ps1`.
+5. Stop: `.\scripts\obs-down.ps1` (data kept; `-Volumes` also deletes the monitoring history).
+
+Without `obs-up` nothing changes: logs stay readable text, traces are not sent, and the metrics endpoint `/actuator/prometheus` is simply there. Learn it: [observability concepts](docs/observability-concepts.md), [phase 12 review](docs/phase-12-review.md).
+
 Use **one option at a time**: they use the same ports or the same memory (A and B also share data volumes; switching keeps your data). Each service creates its own database on first start. Logs of option B are in `logs\`.
 
 ## Tests
@@ -80,4 +92,4 @@ cd backend
 ```
 
 ## Status
-Phases 1 to 11 done: foundation, auth, rides and matching, Redis, WebSockets, Kafka and events, microservices, API gateway, Docker, Kubernetes, scaling and failure experiments.
+Phases 1 to 12 done: foundation, auth, rides and matching, Redis, WebSockets, Kafka and events, microservices, API gateway, Docker, Kubernetes, scaling and failure experiments, observability.

@@ -24,10 +24,12 @@ public class OutboxService {
 
     private final JdbcTemplate jdbc;
     private final EventCodec codec;
+    private final TraceContextCarrier trace;
 
-    public OutboxService(JdbcTemplate jdbc, EventCodec codec) {
+    public OutboxService(JdbcTemplate jdbc, EventCodec codec, TraceContextCarrier trace) {
         this.jdbc = jdbc;
         this.codec = codec;
+        this.trace = trace;
     }
 
     /** MANDATORY: refuses to run outside a transaction, because without one the whole guarantee is gone. */
@@ -35,9 +37,9 @@ public class OutboxService {
     public EventEnvelope append(String topic, String key, String type, Object data) {
         EventEnvelope envelope = codec.envelope(type, key, data);
         jdbc.update("""
-                insert into outbox_events (event_id, topic, event_key, event_type, payload, created_at)
-                values (?, ?, ?, ?, ?, ?)
-                """, envelope.eventId(), topic, key, type, codec.toJson(envelope), Timestamp.from(Instant.now()));
+                insert into outbox_events (event_id, topic, event_key, event_type, payload, created_at, traceparent)
+                values (?, ?, ?, ?, ?, ?, ?)
+                """, envelope.eventId(), topic, key, type, codec.toJson(envelope), Timestamp.from(Instant.now()), trace.capture());
         return envelope;
     }
 }

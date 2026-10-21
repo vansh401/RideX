@@ -1,7 +1,11 @@
 package com.ridex.platform.kafka;
 
+import java.util.List;
+
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.common.TopicPartition;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -14,12 +18,18 @@ import org.springframework.kafka.config.TopicBuilder;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
 import org.springframework.kafka.listener.DefaultErrorHandler;
+import org.springframework.kafka.listener.ConsumerRecordRecoverer;
 import org.springframework.kafka.support.ExponentialBackOffWithMaxRetries;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 
 import com.ridex.platform.contracts.Topics;
+
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.tracing.Tracer;
+import io.micrometer.tracing.propagation.Propagator;
 
 import tools.jackson.databind.json.JsonMapper;
 
@@ -90,16 +100,32 @@ public class PlatformKafkaAutoConfiguration {
     @Bean
     @ConditionalOnProperty("spring.kafka.bootstrap-servers")
     @ConditionalOnMissingBean(DefaultErrorHandler.class)
-    DefaultErrorHandler kafkaErrorHandler(KafkaTemplate<String, String> template, RetryProperties retry) {
+    DefaultErrorHandler kafkaErrorHandler(KafkaTemplate<String, String> template, RetryProperties retry, MeterRegistry metrics) {
         DeadLetterPublishingRecoverer recoverer = new DeadLetterPublishingRecoverer(template,
                 (record, exception) -> new TopicPartition(Topics.deadLetterOf(record.topic()), -1));
+        // Every message that ends up in a dead-letter topic is counted: this number should be zero, and an alert watches it
+        for (String topic : List.of(Topics.RIDE_EVENTS, Topics.PAYMENT_EVENTS, Topics.DRIVER_EVENTS)) {
+            Counter.builder("ridex.dead.letters").tag("topic", topic).register(metrics);   // visible as 0 from the start
+        }
+        ConsumerRecordRecoverer counted = (record, exception) -> {
+            Counter.builder("ridex.dead.letters").description("Messages moved to a dead-letter topic").tag("topic", record.topic())
+                    .register(metrics).increment();
+            recoverer.accept(record, exception);
+        };
         ExponentialBackOffWithMaxRetries backOff = new ExponentialBackOffWithMaxRetries(Math.max(0, retry.attempts() - 1));
         backOff.setInitialInterval(retry.initial());
         backOff.setMultiplier(retry.multiplier());
         backOff.setMaxInterval(retry.max());
-        DefaultErrorHandler handler = new DefaultErrorHandler(recoverer, backOff);
+        DefaultErrorHandler handler = new DefaultErrorHandler(counted, backOff);
         handler.addNotRetryableExceptions(PoisonEventException.class);
         return handler;
+    }
+
+    /** Puts the event id, event type and ride id in the logging context while a message is handled. */
+    @Bean
+    @ConditionalOnMissingBean
+    KafkaLogContextInterceptor kafkaLogContextInterceptor() {
+        return new KafkaLogContextInterceptor();
     }
 
     @Bean
@@ -117,6 +143,14 @@ public class PlatformKafkaAutoConfiguration {
 
     // ------------------------------------------------------------------ publishing
 
+    /** Keeps the trace of a request attached to the events it causes (see TraceContextCarrier). Does nothing when tracing is off. */
+    @Bean
+    @ConditionalOnMissingBean
+    TraceContextCarrier traceContextCarrier(ObjectProvider<Tracer> tracer,
+                                            ObjectProvider<Propagator> propagator) {
+        return new TraceContextCarrier(tracer.getIfAvailable(), propagator.getIfAvailable());
+    }
+
     @Bean
     @ConditionalOnProperty("spring.datasource.url")
     @ConditionalOnMissingBean
@@ -127,8 +161,15 @@ public class PlatformKafkaAutoConfiguration {
     @Bean
     @ConditionalOnProperty("spring.datasource.url")
     @ConditionalOnMissingBean
-    OutboxService outboxService(JdbcTemplate jdbc, EventCodec codec) {
-        return new OutboxService(jdbc, codec);
+    OutboxService outboxService(JdbcTemplate jdbc, EventCodec codec, TraceContextCarrier trace) {
+        return new OutboxService(jdbc, codec, trace);
+    }
+
+    @Bean
+    @ConditionalOnProperty("spring.datasource.url")
+    @ConditionalOnMissingBean
+    OutboxMetrics outboxMetrics(OutboxStore store, MeterRegistry metrics) {
+        return new OutboxMetrics(store, metrics);
     }
 
     @Bean
@@ -136,7 +177,8 @@ public class PlatformKafkaAutoConfiguration {
     @ConditionalOnExpression("${ridex.outbox.enabled:true}")
     @ConditionalOnMissingBean
     OutboxRelay outboxRelay(OutboxStore store, KafkaTemplate<String, String> kafka, PlatformTransactionManager transactionManager,
-                            @org.springframework.beans.factory.annotation.Value("${ridex.outbox.batch-size:100}") int batchSize) {
-        return new OutboxRelay(store, kafka, transactionManager, batchSize);
+                            @Value("${ridex.outbox.batch-size:100}") int batchSize,
+                            TraceContextCarrier trace, MeterRegistry metrics) {
+        return new OutboxRelay(store, kafka, transactionManager, batchSize, trace, metrics);
     }
 }

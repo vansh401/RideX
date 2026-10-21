@@ -12,6 +12,9 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+
 /**
  * Copies events from the outbox table to Kafka, oldest first.
  *
@@ -33,12 +36,19 @@ public class OutboxRelay {
     private final KafkaTemplate<String, String> kafka;
     private final TransactionTemplate transaction;
     private final int batchSize;
+    private final TraceContextCarrier trace;
+    private final Counter publishedCounter;
+    private final Counter failedCounter;
 
-    public OutboxRelay(OutboxStore store, KafkaTemplate<String, String> kafka, PlatformTransactionManager transactionManager, int batchSize) {
+    public OutboxRelay(OutboxStore store, KafkaTemplate<String, String> kafka, PlatformTransactionManager transactionManager, int batchSize,
+                       TraceContextCarrier trace, MeterRegistry metrics) {
         this.store = store;
         this.kafka = kafka;
         this.transaction = new TransactionTemplate(transactionManager);
         this.batchSize = batchSize;
+        this.trace = trace;
+        this.publishedCounter = Counter.builder("ridex.outbox.published").description("Events confirmed by Kafka").register(metrics);
+        this.failedCounter = Counter.builder("ridex.outbox.publish.failures").description("Times Kafka did not confirm an event").register(metrics);
     }
 
     @Scheduled(fixedDelayString = "${ridex.outbox.poll-interval-ms:500}")
@@ -63,13 +73,17 @@ public class OutboxRelay {
                     ProducerRecord<String, String> record = new ProducerRecord<>(event.topic(), event.key(), event.payload());
                     record.headers().add("event-id", event.eventId().toString().getBytes(StandardCharsets.UTF_8));
                     record.headers().add("event-type", event.type().getBytes(StandardCharsets.UTF_8));
-                    kafka.send(record).get(10, TimeUnit.SECONDS);   // wait for the broker to confirm
+                    // inside a span that continues the trace of the request that caused the event; its traceparent goes in the headers
+                    trace.publishWithin(event.traceparent(), "outbox publish " + event.type(), record.headers(),
+                            () -> kafka.send(record).get(10, TimeUnit.SECONDS));   // wait for the broker to confirm
                     store.markPublished(event.seq());
                     count++;
+                    publishedCounter.increment();
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     break;
                 } catch (Exception e) {
+                    failedCounter.increment();
                     log.warn("Could not publish outbox event {} ({}): {}. Stopping this pass to keep the order.",
                             event.seq(), event.type(), e.getClass().getSimpleName());
                     break;

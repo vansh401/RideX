@@ -24,11 +24,11 @@ public class JdbcOutboxStore implements OutboxStore {
     @Override
     public List<Pending> findUnpublished(int limit) {
         return jdbc.query("""
-                select seq, event_id, topic, event_key, event_type, payload
+                select seq, event_id, topic, event_key, event_type, payload, traceparent
                 from outbox_events where published_at is null order by seq limit ?
                 """,
                 (rs, n) -> new Pending(rs.getLong("seq"), rs.getObject("event_id", UUID.class), rs.getString("topic"),
-                        rs.getString("event_key"), rs.getString("event_type"), rs.getString("payload")),
+                        rs.getString("event_key"), rs.getString("event_type"), rs.getString("payload"), rs.getString("traceparent")),
                 limit);
     }
 

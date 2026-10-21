@@ -16,6 +16,7 @@ import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
 import io.github.resilience4j.core.IntervalFunction;
 import io.github.resilience4j.retry.Retry;
 import io.github.resilience4j.retry.RetryConfig;
+import io.micrometer.observation.ObservationRegistry;
 
 /** Builds the protected gateway client from the settings in application.properties. */
 @Configuration
@@ -57,11 +58,12 @@ public class GatewayConfig {
     }
 
     @Bean
-    PaymentGateway paymentGateway(GatewayProperties p, CircuitBreaker circuitBreaker, Retry retry, Bulkhead bulkhead) {
+    PaymentGateway paymentGateway(GatewayProperties p, CircuitBreaker circuitBreaker, Retry retry, Bulkhead bulkhead,
+                                  ObservationRegistry observations) {
         JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(
                 HttpClient.newBuilder().connectTimeout(Duration.ofMillis(p.connectTimeoutMs())).build());
         factory.setReadTimeout(Duration.ofMillis(p.readTimeoutMs()));   // the TIMEOUT protection
-        RestClient client = RestClient.builder().baseUrl(p.baseUrl()).requestFactory(factory).build();
+        RestClient client = RestClient.builder().baseUrl(p.baseUrl()).requestFactory(factory).observationRegistry(observations).build();
         return new HttpPaymentGateway(client, circuitBreaker, retry, bulkhead);
     }
 }

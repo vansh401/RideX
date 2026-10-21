@@ -1,0 +1,126 @@
+# ALERT RULES: when should a human be told?
+#
+# Principles used here (read docs/observability-concepts.md, section "What to alert on"):
+#  1. Alert on SYMPTOMS users feel (errors, slowness, things not happening), not on every cause (CPU 80 %). A cause only gets an alert when
+#     it WILL become a symptom soon and there is time to act (database pool full, backlog growing).
+#  2. Every alert needs an owner action. If the answer to "what do I do?" is "nothing", it is not an alert, it is a graph.
+#  3. `for:` makes a condition last for a while before it fires, so a blip does not wake anybody.
+#  4. Two severities: critical = act now; warning = act in working hours.
+#  5. Guard ratios with a minimum amount of traffic: 1 failed request out of 2 is 50 % and means nothing.
+#
+# Test them offline:  docker run --rm -v ...:/w --entrypoint promtool prom/prometheus:v3.15.1 test rules /w/alerts.test.yml
+groups:
+  - name: availability
+    rules:
+      - alert: ServiceDown
+        expr: up{job="ridex"} == 0
+        for: 1m
+        labels: {severity: critical}
+        annotations:
+          summary: "{{ $labels.application }} cannot be scraped"
+          description: "Prometheus has not been able to read {{ $labels.instance }} for 1 minute. The service is down, or the network to it is."
+          action: "Check `docker compose ps` / `kubectl get pods`, then the service log (search the last lines for ERROR)."
+
+  - name: user-facing
+    rules:
+      - alert: HighErrorRate
+        expr: |
+          sum by (application) (rate(http_server_requests_seconds_count{status=~"5..", uri!~"/actuator.*"}[5m]))
+            / sum by (application) (rate(http_server_requests_seconds_count{uri!~"/actuator.*"}[5m])) > 0.05
+          and sum by (application) (rate(http_server_requests_seconds_count{uri!~"/actuator.*"}[5m])) > 0.2
+        for: 5m
+        labels: {severity: critical}
+        annotations:
+          summary: "{{ $labels.application }}: {{ $value | humanizePercentage }} of requests fail with 5xx"
+          description: "More than 5 % of the requests of {{ $labels.application }} answered 5xx for 5 minutes (with real traffic, over 0.2 requests per second)."
+          action: "Open the Grafana dashboard 'RideX overview', then search the logs for level ERROR in this service, and open a failing trace in Jaeger."
+
+      - alert: HighLatency
+        expr: |
+          histogram_quantile(0.95, sum by (application, le) (rate(http_server_requests_seconds_bucket{uri!~"/actuator.*|/ws.*"}[5m]))) > 1
+        for: 10m
+        labels: {severity: warning}
+        annotations:
+          summary: "{{ $labels.application }}: 95 % of requests take longer than {{ $value | humanizeDuration }}"
+          description: "The 95th percentile latency of {{ $labels.application }} has been above 1 second for 10 minutes."
+          action: "Look for the slow part in a trace (Jaeger): database, a downstream service, or the service itself. Check the DB pool and CPU panels."
+
+  - name: capacity
+    rules:
+      - alert: DatabasePoolNearlyFull
+        expr: sum by (application) (hikaricp_connections_active) / sum by (application) (hikaricp_connections_max) > 0.9
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: "{{ $labels.application }} uses {{ $value | humanizePercentage }} of its database connections"
+          description: "When the pool is full, requests wait for a connection and latency explodes. It will become HighLatency soon."
+          action: "Look for slow queries or a leaked connection; scale out the service only if the database can take more connections."
+
+      - alert: RequestsWaitingForADatabaseConnection
+        expr: sum by (application) (hikaricp_connections_pending) > 0
+        for: 2m
+        labels: {severity: warning}
+        annotations:
+          summary: "{{ $labels.application }}: requests are queueing for a database connection"
+          description: "At least one thread has waited for a pool connection for 2 minutes in a row."
+          action: "Same as DatabasePoolNearlyFull; this one means the queue has already started."
+
+      - alert: JvmHeapAlmostFull
+        expr: sum by (application) (jvm_memory_used_bytes{area="heap"}) / sum by (application) (jvm_memory_max_bytes{area="heap"}) > 0.9
+        for: 10m
+        labels: {severity: warning}
+        annotations:
+          summary: "{{ $labels.application }} heap is {{ $value | humanizePercentage }} full"
+          description: "A heap that stays above 90 % means constant garbage collection, then OutOfMemoryError."
+          action: "Check for a memory leak (heap dump) or raise the memory limit."
+
+  - name: events
+    rules:
+      - alert: OutboxBacklog
+        expr: ridex_outbox_pending > 100
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: "{{ $labels.application }}: {{ $value }} events are waiting in the outbox"
+          description: "Events are saved but not reaching Kafka. Kafka may be down, or the relay is stuck. Nothing is lost, but payments, notifications and analytics are delayed."
+          action: "Check Kafka, then the relay log lines 'Could not publish outbox event'."
+
+      - alert: DeadLetters
+        expr: sum by (application) (increase(ridex_dead_letters_total[15m])) > 0
+        for: 0m
+        labels: {severity: warning}
+        annotations:
+          summary: "{{ $labels.application }} moved messages to a dead-letter topic"
+          description: "A message failed all its retries. It is parked in a *.DLT topic and the consumer moved on."
+          action: "Read the dead letter (GET /api/admin/dead-letters on analytics), fix the cause, replay."
+
+      - alert: KafkaConsumerLagging
+        expr: max by (application) (kafka_consumer_fetch_manager_records_lag_max) > 1000
+        for: 10m
+        labels: {severity: warning}
+        annotations:
+          summary: "{{ $labels.application }} is {{ $value }} messages behind on Kafka"
+          description: "The consumer reads slower than events arrive for 10 minutes."
+          action: "Check the consumer for slow handling (trace a consumed event) or add partitions and copies."
+
+  - name: business
+    rules:
+      - alert: PaymentsFailing
+        expr: |
+          sum(rate(ridex_payments_total{outcome!="succeeded"}[15m])) / sum(rate(ridex_payments_total[15m])) > 0.3
+          and sum(rate(ridex_payments_total[15m])) > 0.01
+        for: 10m
+        labels: {severity: critical}
+        annotations:
+          summary: "{{ $value | humanizePercentage }} of payment attempts do not succeed"
+          description: "Over 30 % of payment attempts failed or got no answer from the payment gateway for 10 minutes."
+          action: "Check the gateway status; payments with no answer are retried with the same idempotency key."
+
+      - alert: RidesStuckSearching
+        expr: ridex_rides{status="SEARCHING_DRIVER"} > 20
+        for: 10m
+        labels: {severity: warning}
+        annotations:
+          summary: "{{ $value }} rides have been waiting for a driver for 10 minutes"
+          description: "Many rides are in SEARCHING_DRIVER and the number is not going down: not enough drivers online, or matching is broken."
+          action: "Check the driver availability and the dispatch log lines; check Redis (driver locations)."

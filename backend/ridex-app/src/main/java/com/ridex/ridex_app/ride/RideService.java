@@ -7,12 +7,14 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
+import org.slf4j.MDC;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.ridex.platform.web.LogContext;
 import com.ridex.ridex_app.common.ConflictException;
 import com.ridex.ridex_app.common.PageResponse;
 import com.ridex.ridex_app.common.Paging;
@@ -100,6 +102,7 @@ public class RideService {
         // Flush now: the "one active ride per rider" unique index is checked here, inside this method,
         // so two requests racing each other cannot both get through
         rideRepository.saveAndFlush(ride);
+        MDC.put(LogContext.RIDE_ID, ride.getId().toString());   // from here on every log line of this request names the ride (removed by RideLogContextConfig)
         dispatcher.tryAssign(ride, now);
         // Saving again publishes the status changes made by tryAssign (the offer), see Ride.domainEvents
         rideRepository.save(ride);
