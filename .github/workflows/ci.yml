@@ -1,0 +1,192 @@
+# CI: is this change safe to merge? Runs on every pull request and every push to main, and is reused by cd.yml (so a deployment can
+# only start after exactly these checks passed). Read docs/ci-cd-concepts.md for the ideas behind every choice.
+#
+# The jobs run IN PARALLEL on separate machines, so the slowest one decides how long you wait:
+#
+#   backend-unit         fast tests, no Docker (about 1 minute)         <- feedback first
+#   backend-integration  tests with real PostgreSQL / Kafka / Redis in containers, one machine per service
+#   frontend             lint, tests, production build
+#   docker-build         all images build (nothing is pushed from a pull request)
+#   manifests            Kubernetes manifests render for staging and production
+#   monitoring-config    alert rules and Prometheus / Alertmanager configuration are valid and tested
+#   workflows            this file and cd.yml are valid (actionlint)
+#   ci-ok                ONE job that says "everything above passed": make this the required check in the branch protection rules
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_call:   # lets cd.yml run these same jobs first
+
+# The default token can only READ the repository. A job that needs more asks for it itself, and none of these do.
+permissions:
+  contents: read
+
+# A new push to a pull request makes the older run pointless: cancel it. (On main every commit is tested.)
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  backend-unit:
+    name: Backend unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven          # restores ~/.m2 (keyed on the pom.xml files): the internet is downloaded once, not on every run
+      # excludedGroups: everything tagged "integration" (it needs Docker) runs in the next job instead.
+      # This step also runs the architecture and policy tests (layering, Kubernetes rules, log hygiene, monitoring rules).
+      - name: Build and run the unit tests
+        working-directory: backend
+        run: bash mvnw -B -ntp verify -DexcludedGroups=integration
+      - name: Keep the test reports when something failed
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-reports
+          path: backend/**/target/surefire-reports
+          retention-days: 7
+
+  backend-integration:
+    name: Integration tests (${{ matrix.module }})
+    runs-on: ubuntu-latest   # GitHub's Ubuntu machines have Docker installed: Testcontainers starts PostgreSQL, Redis and Kafka on them
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false       # one failing service must not hide the result of the others
+      matrix:
+        module: [ridex-app, notification-service, payment-service, pricing-service, analytics-service, api-gateway]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      # -pl: only this service. -am: and what it needs (the platform library). groups=integration: only the tests that need Docker.
+      # rerunFailingTestsCount=1: a few tests depend on timing (rate-limit buckets); a test that fails once and passes on the second
+      # try is reported as a FLAKE in the log rather than turning the build red. A test that fails twice is a real failure.
+      - name: Run the integration tests of ${{ matrix.module }}
+        working-directory: backend
+        run: bash mvnw -B -ntp verify -pl ${{ matrix.module }} -am -Dgroups=integration -Dsurefire.rerunFailingTestsCount=1
+      - name: Keep the test reports when something failed
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-test-reports-${{ matrix.module }}
+          path: backend/**/target/surefire-reports
+          retention-days: 7
+
+  frontend:
+    name: Frontend (lint, test, build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend/ridex-web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/ridex-web/package-lock.json
+      # npm ci installs EXACTLY what package-lock.json says (and fails if it disagrees with package.json); npm install may change versions
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build   # type-checks (tsc) and produces the production bundle
+      - uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/ridex-web/dist
+          retention-days: 7
+
+  docker-build:
+    name: Image builds (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {name: core, context: backend, file: backend/Dockerfile, args: "MODULE=ridex-app\nPORT=8080"}
+          - {name: notification, context: backend, file: backend/Dockerfile, args: "MODULE=notification-service\nPORT=8081"}
+          - {name: payment, context: backend, file: backend/Dockerfile, args: "MODULE=payment-service\nPORT=8082"}
+          - {name: pricing, context: backend, file: backend/Dockerfile, args: "MODULE=pricing-service\nPORT=8083"}
+          - {name: analytics, context: backend, file: backend/Dockerfile, args: "MODULE=analytics-service\nPORT=8084"}
+          - {name: gateway, context: backend, file: backend/Dockerfile, args: "MODULE=api-gateway\nPORT=8000"}
+          - {name: web, context: frontend/ridex-web, file: frontend/ridex-web/Dockerfile, args: ""}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      # push: false. A pull request proves that the image BUILDS; publishing images is the job of cd.yml, after the merge.
+      # The six backend images share one cache scope: they have the same compile stage, so after the first build the others reuse it.
+      - uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.file }}
+          build-args: ${{ matrix.args }}
+          push: false
+          cache-from: type=gha,scope=${{ matrix.context }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.context }}
+
+  manifests:
+    name: Kubernetes manifests render
+    runs-on: ubuntu-latest   # kubectl (with kustomize built in) is installed on GitHub's Ubuntu machines
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Render staging and production with a made-up build
+        run: |
+          for env in staging prod; do
+            bash scripts/ci/render.sh "$env" ghcr.io/ci-check sha-0123456789ab > "rendered-$env.yaml"
+            echo "$env: $(grep -c '^kind:' "rendered-$env.yaml") objects, images:"
+            grep 'image: ghcr.io/ci-check/' "rendered-$env.yaml" | sort -u
+          done
+
+  monitoring-config:
+    name: Alert rules and monitoring configuration
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      # promtool and amtool run from the official images: validates the config and unit-tests the alert rules (scripts/obs-test-rules.ps1)
+      - name: Check and test the monitoring configuration
+        shell: pwsh
+        run: ./scripts/obs-test-rules.ps1
+
+  workflows:
+    name: Workflow files (actionlint)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      # actionlint understands GitHub Actions syntax, expressions and shell steps, and catches mistakes before a run does
+      - uses: docker://rhysd/actionlint:1.7.7
+        with:
+          args: -color
+
+  ci-ok:
+    name: CI passed
+    if: always()             # runs even when something above failed, so the verdict is never "skipped"
+    needs: [backend-unit, backend-integration, frontend, docker-build, manifests, monitoring-config, workflows]
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Everything must have succeeded
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "Results: $RESULTS"
+          for result in $RESULTS; do
+            if [ "$result" != "success" ]; then
+              echo "::error::A required job did not succeed ($result)"
+              exit 1
+            fi
+          done

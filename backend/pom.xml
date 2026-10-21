@@ -59,11 +59,26 @@
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-surefire-plugin</artifactId>
 					<configuration>
+						<!-- Mockito is loaded as a Java agent: without this it attaches itself to the running JVM by starting a helper process, which fails
+						     on a machine short of memory and is deprecated by the JDK. (The path comes from maven-dependency-plugin:properties below.) -->
 						<!-- UTC, and a modest explicit heap so tests also start on laptops running Docker Desktop -->
-						<argLine>-Duser.timezone=UTC -Xmx640m -XX:MaxMetaspaceSize=256m -XX:+UseSerialGC</argLine>
+						<argLine>-javaagent:${org.mockito:mockito-core:jar} -Duser.timezone=UTC -Xmx640m -XX:MaxMetaspaceSize=256m -XX:+UseSerialGC</argLine>
 					</configuration>
 				</plugin>
 			</plugins>
 		</pluginManagement>
+
+		<!-- Makes the jar path of every dependency available as a property, e.g. ${org.mockito:mockito-core:jar} (see the surefire argLine) -->
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-dependency-plugin</artifactId>
+				<executions>
+					<execution>
+						<goals><goal>properties</goal></goals>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
 	</build>
 </project>

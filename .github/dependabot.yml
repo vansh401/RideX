@@ -1,0 +1,28 @@
+# Dependabot opens pull requests when a dependency has a new version, so updates are small, regular and tested by CI instead of one
+# frightening upgrade a year. It also updates the versions of the GitHub Actions used in .github/workflows.
+version: 2
+updates:
+  - package-ecosystem: maven
+    directory: /backend
+    schedule: {interval: weekly}
+    open-pull-requests-limit: 5
+    groups:
+      spring:                      # Spring Boot and its libraries move together: one pull request, not twenty
+        patterns: ["org.springframework*", "org.springframework.boot*"]
+
+  - package-ecosystem: npm
+    directory: /frontend/ridex-web
+    schedule: {interval: weekly}
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: {interval: weekly}
+
+  - package-ecosystem: docker
+    directory: /backend
+    schedule: {interval: weekly}
+
+  - package-ecosystem: docker
+    directory: /frontend/ridex-web
+    schedule: {interval: weekly}

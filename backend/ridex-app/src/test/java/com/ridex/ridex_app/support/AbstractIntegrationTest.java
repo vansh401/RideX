@@ -1,5 +1,6 @@
 package com.ridex.ridex_app.support;
 
+import org.junit.jupiter.api.Tag;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
@@ -20,6 +21,8 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
  * One container is started once and shared by every test class, which keeps the suite fast.
  * It is removed automatically when the test JVM exits.
  */
+// Needs Docker (Testcontainers): the CI pipeline runs these in a separate job from the fast unit tests (see docs/ci-cd-concepts.md)
+@Tag("integration")
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
 // Pricing is another service: core tests plug in a stand-in with the same contract (see FakePricingConfig)

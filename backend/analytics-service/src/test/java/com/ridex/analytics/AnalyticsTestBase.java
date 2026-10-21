@@ -2,6 +2,7 @@ package com.ridex.analytics;
 
 import java.util.UUID;
 
+import org.junit.jupiter.api.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -15,6 +16,8 @@ import com.ridex.platform.testing.ServiceContainers;
 import com.ridex.platform.testing.TestTokens;
 
 /** The analytics service started for real, against real PostgreSQL, Kafka and Redis. */
+// Needs Docker (Testcontainers): the CI pipeline runs these in a separate job from the fast unit tests (see docs/ci-cd-concepts.md)
+@Tag("integration")
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
 abstract class AnalyticsTestBase {

@@ -5,6 +5,7 @@ import java.net.ServerSocket;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -23,6 +24,8 @@ import io.github.resilience4j.circuitbreaker.CircuitBreaker;
  * The payment service started for real, against real PostgreSQL, Kafka and Redis. The "remote" payment gateway is the mock
  * inside the service, reached over real HTTP on the service's own port, so timeouts, 500s and the circuit breaker are real.
  */
+// Needs Docker (Testcontainers): the CI pipeline runs these in a separate job from the fast unit tests (see docs/ci-cd-concepts.md)
+@Tag("integration")
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.DEFINED_PORT)
 @ActiveProfiles("test")
 abstract class PaymentTestBase {

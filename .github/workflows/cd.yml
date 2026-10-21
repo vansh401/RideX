@@ -1,0 +1,181 @@
+# CD: from a commit on main to running software. Read docs/ci-cd-concepts.md first.
+#
+#   push to main           ->  CI  ->  build + push the images (tagged with the commit)  ->  deploy to STAGING, automatically
+#   push of a tag  v1.4.0  ->  CI  ->  give the images of that commit the version tag     ->  deploy to PRODUCTION, after a human approves
+#
+# BUILD ONCE, DEPLOY MANY. The images are built one time, for the commit, and tagged sha-<commit>. Staging runs exactly those. A release
+# tag does not rebuild anything: it adds the name 1.4.0 to the images that were already built, tested and run in staging, and production
+# runs those. What was tested is what ships.
+#
+# The two environments ("staging", "production") are GitHub Environments: the place where deployment secrets live and where the
+# approval for production is configured. Nothing here can deploy without them.
+name: CD
+
+on:
+  push:
+    branches: [main]
+    tags: ["v[0-9]+.[0-9]+.[0-9]+"]
+
+permissions:
+  contents: read
+
+# Deployments of the same target must not overlap, and a deployment in progress is never cancelled halfway.
+concurrency:
+  group: cd-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  ci:
+    name: CI
+    uses: ./.github/workflows/ci.yml
+
+  images:
+    name: Image ${{ matrix.name }}
+    needs: ci
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
+      packages: write          # the ONLY job that may publish images to the registry (GitHub Container Registry)
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {name: core, context: backend, file: backend/Dockerfile, args: "MODULE=ridex-app\nPORT=8080"}
+          - {name: notification, context: backend, file: backend/Dockerfile, args: "MODULE=notification-service\nPORT=8081"}
+          - {name: payment, context: backend, file: backend/Dockerfile, args: "MODULE=payment-service\nPORT=8082"}
+          - {name: pricing, context: backend, file: backend/Dockerfile, args: "MODULE=pricing-service\nPORT=8083"}
+          - {name: analytics, context: backend, file: backend/Dockerfile, args: "MODULE=analytics-service\nPORT=8084"}
+          - {name: gateway, context: backend, file: backend/Dockerfile, args: "MODULE=api-gateway\nPORT=8000"}
+          - {name: web, context: frontend/ridex-web, file: frontend/ridex-web/Dockerfile, args: ""}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0       # the whole history, to check below that a release tag is on main
+
+      - name: Work out the image names and tags
+        id: names
+        run: |
+          owner="${GITHUB_REPOSITORY_OWNER,,}"   # registries need lower case
+          short="${GITHUB_SHA::12}"
+          echo "image=ghcr.io/${owner}/ridex-${{ matrix.name }}" >> "$GITHUB_OUTPUT"
+          echo "sha_tag=sha-${short}" >> "$GITHUB_OUTPUT"
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          fi
+
+      # A release must be a commit that went through main (and so through CI and staging), never a stray branch
+      - name: A release tag must be on main
+        if: steps.names.outputs.version != ''
+        run: |
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main \
+            || { echo "::error::Tag $GITHUB_REF_NAME is not on main. Releases are cut from main only."; exit 1; }
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}   # the short-lived token of this run: no personal access token needed
+
+      - uses: docker/setup-buildx-action@v3
+
+      # Re-running a workflow, or tagging a commit that main already built, must not build the same thing again
+      - name: Is this commit's image already in the registry?
+        id: exists
+        run: |
+          if bash scripts/ci/image-exists.sh "${{ steps.names.outputs.image }}:${{ steps.names.outputs.sha_tag }}"; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build and push ${{ matrix.name }}
+        if: steps.exists.outputs.found == 'false'
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.file }}
+          build-args: ${{ matrix.args }}
+          push: true
+          tags: ${{ steps.names.outputs.image }}:${{ steps.names.outputs.sha_tag }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          provenance: true     # attaches a signed-in-spirit record of WHERE and HOW the image was built
+          sbom: true           # and the list of everything inside it (software bill of materials)
+          cache-from: type=gha,scope=${{ matrix.context }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.context }}
+
+      # Release: no rebuild, only a new name for the same digest
+      - name: Add the version tag to the existing image
+        if: steps.names.outputs.version != ''
+        run: bash scripts/ci/promote.sh "${{ steps.names.outputs.image }}" "${{ steps.names.outputs.sha_tag }}" "${{ steps.names.outputs.version }}"
+
+      # Known vulnerabilities in what is inside the image. CRITICAL ones that have a fix stop the pipeline before anything is deployed.
+      - name: Scan for critical vulnerabilities
+        run: |
+          docker run --rm -e TRIVY_USERNAME="${{ github.actor }}" -e TRIVY_PASSWORD="$TRIVY_PASSWORD" \
+            aquasec/trivy:0.76.1 image --exit-code 1 --severity CRITICAL --ignore-unfixed --no-progress \
+            "${{ steps.names.outputs.image }}:${{ steps.names.outputs.sha_tag }}"
+        env:
+          TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+
+  deploy-staging:
+    name: Deploy to staging
+    needs: images
+    if: github.ref == 'refs/heads/main'      # every commit on main goes to staging, with no human in the loop
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: staging                          # secrets and variables of this GitHub Environment are available only to this job
+      url: ${{ vars.STAGING_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-kubectl@v4
+      - name: Connect to the staging cluster
+        env:
+          KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}    # base64 of a kubeconfig that may only touch the ridex-staging namespace
+        run: |
+          umask 077
+          echo "$KUBE_CONFIG" | base64 -d > "$RUNNER_TEMP/kubeconfig"
+          echo "KUBECONFIG=$RUNNER_TEMP/kubeconfig" >> "$GITHUB_ENV"
+      - name: Deploy the images of this commit
+        env:
+          REGISTRY: ghcr.io/${{ github.repository_owner }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          SERVICE_TOKEN: ${{ secrets.SERVICE_TOKEN }}
+          PULL_USER: ${{ github.actor }}
+          PULL_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash scripts/ci/deploy.sh staging "sha-${GITHUB_SHA::12}"
+      - name: Smoke test
+        run: bash scripts/ci/smoke.sh "${{ vars.STAGING_URL }}"
+
+  deploy-production:
+    name: Deploy to production
+    needs: images
+    if: startsWith(github.ref, 'refs/tags/v')   # only a version tag deploys to production
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: production                       # configured with REQUIRED REVIEWERS: the job waits here until a person approves
+      url: ${{ vars.PRODUCTION_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-kubectl@v4
+      - name: Connect to the production cluster
+        env:
+          KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}    # a DIFFERENT secret from staging's: same name, but each environment has its own value
+        run: |
+          umask 077
+          echo "$KUBE_CONFIG" | base64 -d > "$RUNNER_TEMP/kubeconfig"
+          echo "KUBECONFIG=$RUNNER_TEMP/kubeconfig" >> "$GITHUB_ENV"
+      - name: Deploy the released version
+        env:
+          REGISTRY: ghcr.io/${{ github.repository_owner }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          SERVICE_TOKEN: ${{ secrets.SERVICE_TOKEN }}
+          PULL_USER: ${{ github.actor }}
+          PULL_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash scripts/ci/deploy.sh prod "${GITHUB_REF_NAME#v}"
+      - name: Smoke test
+        run: bash scripts/ci/smoke.sh "${{ vars.PRODUCTION_URL }}"

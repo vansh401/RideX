@@ -7,6 +7,7 @@ import java.net.http.HttpResponse;
 import java.util.Map;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -21,6 +22,8 @@ import com.jayway.jsonpath.JsonPath;
  * The gateway started for real, in front of five fake services, with a real Redis (rate limiter and revocation list).
  * Requests are real HTTP requests to the gateway's port.
  */
+// Needs Docker (Testcontainers): the CI pipeline runs these in a separate job from the fast unit tests (see docs/ci-cd-concepts.md)
+@Tag("integration")
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
         "ridex.gateway.jwks-uri=",
         // generous by default; the rate limit tests choose their own

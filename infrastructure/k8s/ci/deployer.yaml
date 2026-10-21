@@ -1,0 +1,69 @@
+# THE PIPELINE'S IDENTITY IN THE CLUSTER: what the CI/CD pipeline is allowed to do, and nothing more.
+#
+# The deployment job needs a credential for the cluster. If it were a cluster administrator, anyone who could change a workflow (or find
+# a flaw in an action) could do ANYTHING to the cluster. So the pipeline gets its own ServiceAccount with a Role limited to ONE namespace
+# and to the kinds of objects the RideX manifests contain. It cannot read other namespaces, create namespaces or cluster-wide objects,
+# open a shell in a pod (pods/exec) or change permissions.
+#
+# An administrator applies this ONCE per environment, with the namespace filled in (the namespace itself is also created by an admin):
+#
+#   kubectl apply -f infrastructure/k8s/overlays/staging/namespace.yaml
+#   sed 's/__NAMESPACE__/ridex-staging/g' infrastructure/k8s/ci/deployer.yaml | kubectl apply -f -
+#
+# Then create the kubeconfig the pipeline uses (see docs/github-setup.md): a token for this ServiceAccount.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ci-deployer
+  namespace: __NAMESPACE__
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: ci-deployer
+  namespace: __NAMESPACE__
+rules:
+  # The workloads. "patch" and "update" are what `kubectl apply` and `rollout undo` use; there is no "delete" (the pipeline never
+  # removes a workload) and no access to pods/exec or pods/log.
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  - apiGroups: ["apps"]
+    resources: ["replicasets"]          # `rollout status` and `rollout undo` read them
+    verbs: ["get", "list", "watch"]
+  # Configuration and networking objects that the manifests contain
+  - apiGroups: [""]
+    resources: ["services", "configmaps", "serviceaccounts", "persistentvolumeclaims"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses", "networkpolicies"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  - apiGroups: ["policy"]
+    resources: ["poddisruptionbudgets"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  - apiGroups: ["autoscaling"]
+    resources: ["horizontalpodautoscalers"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  # Secrets: create or update the ones the pipeline manages (ridex-secrets, registry-pull). It cannot LIST them, so it cannot read
+  # the others.
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "create", "update", "patch"]
+  # To wait for a rollout and to show what is wrong when it fails (read only)
+  - apiGroups: [""]
+    resources: ["pods", "events"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ci-deployer
+  namespace: __NAMESPACE__
+subjects:
+  - kind: ServiceAccount
+    name: ci-deployer
+    namespace: __NAMESPACE__
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: ci-deployer

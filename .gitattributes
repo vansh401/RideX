@@ -1,0 +1,4 @@
+# Shell scripts and the Maven wrapper run on Linux (CI runners, containers): they must keep Unix line endings even when checked out
+# on Windows, or "#!/bin/sh^M" makes them fail with "bad interpreter".
+*.sh    text eol=lf
+mvnw    text eol=lf

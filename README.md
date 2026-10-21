@@ -4,9 +4,9 @@ Production-style ride-hailing platform (Uber/Ola-style) built to learn Java full
 distributed systems and DevOps.
 
 ## Stack
-Java 21 · Spring Boot 4 · PostgreSQL · Redis · Kafka · Flyway · Resilience4j · React + TypeScript · Docker + nginx + Kubernetes (kind, kustomize, HPA) · Micrometer, Prometheus, Grafana, OpenTelemetry, Jaeger
+Java 21 · Spring Boot 4 · PostgreSQL · Redis · Kafka · Flyway · Resilience4j · React + TypeScript · Docker + nginx + Kubernetes (kind, kustomize, HPA) · Micrometer, Prometheus, Grafana, OpenTelemetry, Jaeger · GitHub Actions
 
-## Architecture (after Phase 12)
+## Architecture (after Phase 13)
 
 One API gateway in front of a core application plus four extracted services, and a shared infrastructure library. Each service has its own database. Everything can run in Docker.
 
@@ -82,6 +82,19 @@ Works on top of option A (Docker Compose). Stop the kind cluster first (`docker 
 
 Without `obs-up` nothing changes: logs stay readable text, traces are not sent, and the metrics endpoint `/actuator/prometheus` is simply there. Learn it: [observability concepts](docs/observability-concepts.md), [phase 12 review](docs/phase-12-review.md).
 
+### CI/CD: GitHub Actions pipeline (Phase 13)
+
+The pipeline lives in `.github/workflows/`: **`ci.yml`** (every pull request and push to main: unit tests, integration tests with Testcontainers, frontend, image builds, manifest and alert-rule checks, workflow lint) and **`cd.yml`** (main: build and push images tagged by commit, deploy to **staging**; version tag `v1.2.3`: add the version name to the same images, deploy to **production** after an approval). Dependabot keeps dependencies and actions current.
+
+Things to run yourself, without GitHub:
+
+- Fast tests only / Docker tests only: `cd backend`, then `.\mvnw.cmd verify "-DexcludedGroups=integration"` or `.\mvnw.cmd verify "-Dgroups=integration"` (plain `verify` still runs everything).
+- Render the manifests the way the pipeline does: `bash scripts/ci/render.sh staging ghcr.io/my-org sha-0123456789ab`.
+- Test the deployment logic, including the automatic rollback of a bad version, on the kind cluster: `bash scripts/ci/selftest.sh`.
+- Check the pipeline files: `docker run --rm -v "${PWD}:/repo:ro" -w /repo rhysd/actionlint:1.7.7`.
+
+To switch it on for real, follow [docs/github-setup.md](docs/github-setup.md) (repository, environments, secrets, branch protection, a limited cluster credential). Learn it: [CI/CD concepts](docs/ci-cd-concepts.md), [phase 13 review](docs/phase-13-review.md).
+
 Use **one option at a time**: they use the same ports or the same memory (A and B also share data volumes; switching keeps your data). Each service creates its own database on first start. Logs of option B are in `logs\`.
 
 ## Tests
@@ -92,4 +105,4 @@ cd backend
 ```
 
 ## Status
-Phases 1 to 12 done: foundation, auth, rides and matching, Redis, WebSockets, Kafka and events, microservices, API gateway, Docker, Kubernetes, scaling and failure experiments, observability.
+Phases 1 to 13 done: foundation, auth, rides and matching, Redis, WebSockets, Kafka and events, microservices, API gateway, Docker, Kubernetes, scaling and failure experiments, observability, CI/CD.

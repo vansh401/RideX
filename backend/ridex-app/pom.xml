@@ -180,14 +180,7 @@
                 <jvmArguments>-Duser.timezone=UTC</jvmArguments>
             </configuration>
         </plugin>
-        <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-surefire-plugin</artifactId>
-            <configuration>
-                <!-- UTC, and a modest explicit heap so tests also start on laptops running Docker Desktop -->
-                <argLine>-Duser.timezone=UTC -Xmx640m -XX:MaxMetaspaceSize=256m -XX:+UseSerialGC</argLine>
-            </configuration>
-        </plugin>
+        <!-- (the surefire settings, including the Mockito agent, are inherited from the parent pom) -->
     </plugins>
 </build>
 

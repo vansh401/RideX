@@ -9,6 +9,7 @@ import java.net.http.HttpResponse;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Tag;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -22,6 +23,8 @@ import com.ridex.platform.testing.TestTokens;
  * The pricing service started for real. It has NO database and NO Kafka (only Redis, to honour logouts): it is a pure function behind HTTP, which
  * is exactly what makes it the easiest service to extract and to scale.
  */
+// Needs Docker (Testcontainers): the CI pipeline runs these in a separate job from the fast unit tests (see docs/ci-cd-concepts.md)
+@Tag("integration")
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
         "ridex.security.jwks-uri=",
         "ridex.internal.service-token=test-service-token-not-a-real-secret"
