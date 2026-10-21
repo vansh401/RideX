@@ -378,6 +378,73 @@ class KubernetesPolicyTest {
         assertThat(Files.readString(K8S.resolve("overlays/staging/kustomization.yaml"))).contains("/spec/tls");
     }
 
+    // ------------------------------------------------------------------ scaling (phase 11)
+
+    private static List<Map<String, Object>> hpas(String overlay) throws IOException {
+        List<Map<String, Object>> found = new ArrayList<>();
+        for (Object d : new Yaml().loadAll(Files.readString(K8S.resolve("overlays/" + overlay + "/hpa.yaml")))) {
+            @SuppressWarnings("unchecked") Map<String, Object> m = (Map<String, Object>) d;
+            found.add(m);
+        }
+        return found;
+    }
+
+    @Test
+    void everyAutoscalerHasRoomToGrowAndTargetsADeploymentThatExists() throws IOException {
+        Set<String> deployments = new java.util.HashSet<>();
+        ofKind("Deployment").forEach(d -> deployments.add(name(d)));
+        for (String overlay : List.of("prod", "scale")) {
+            List<Map<String, Object>> hpas = hpas(overlay);
+            assertThat(hpas).as(overlay + " has autoscalers").isNotEmpty();
+            for (Map<String, Object> hpa : hpas) {
+                Map<String, Object> spec = map(hpa.get("spec"));
+                int min = (Integer) spec.get("minReplicas");
+                int max = (Integer) spec.get("maxReplicas");
+                assertThat(max).as(overlay + " " + name(hpa) + ": max above min").isGreaterThan(min);
+                assertThat(min).as(overlay + " " + name(hpa) + ": at least 2 copies survive losing one").isGreaterThanOrEqualTo(2);
+                assertThat(deployments).as(overlay + " " + name(hpa) + " scales a real Deployment").contains((String) map(spec.get("scaleTargetRef")).get("name"));
+                assertThat(name(hpa)).as("only stateless apps are autoscaled").isIn("gateway", "pricing");
+            }
+        }
+    }
+
+    @Test
+    void productionMayGrowToTenCopiesAndTheLaptopOverlayStopsAtFive() throws IOException {
+        for (Map<String, Object> hpa : hpas("prod")) {
+            assertThat(map(hpa.get("spec")).get("maxReplicas")).as("prod " + name(hpa)).isEqualTo(10);
+        }
+        for (Map<String, Object> hpa : hpas("scale")) {
+            assertThat(map(hpa.get("spec")).get("maxReplicas")).as("scale " + name(hpa)).isEqualTo(5);
+        }
+    }
+
+    @Test
+    void theScaleOverlayMakesTheCoreRunnableInSeveralCopies() throws IOException {
+        String scale = Files.readString(K8S.resolve("overlays/scale/kustomization.yaml"));
+        assertThat(scale).as("a shared signing key, not one per pod").contains("ridex-jwt-key").contains("/app/data/keys");
+        assertThat(scale).as("rolling update replaces Recreate once the disk is gone").contains("RollingUpdate");
+        assertThat(scale).as("the single-copy disk claim is removed").contains("name: core-data").contains("$patch: delete");
+        assertThat(scale).as("the secret itself is made by the script, never committed").doesNotContain("BEGIN PRIVATE KEY");
+    }
+
+    @Test
+    void testOnlyRateLimitOverridesExistOnlyInTheScaleOverlay() throws IOException {
+        for (String env : List.of("dev", "staging", "prod")) {
+            String kustomization = Files.readString(K8S.resolve("overlays/" + env + "/kustomization.yaml"));
+            assertThat(kustomization).as(env + " keeps the real limits").doesNotContain("GATEWAY_RATE=").doesNotContain("RIDEX_RATELIMIT");
+        }
+        assertThat(Files.readString(K8S.resolve("overlays/scale/kustomization.yaml"))).contains("GATEWAY_RATE=").contains("RIDEX_RATELIMIT_APILIMIT=").contains("TEST ONLY");
+    }
+
+    @Test
+    void scaleOverlayRendersWithEveryReferencedObjectPresent() throws Exception {
+        assumeThat(kubectlAvailable()).as("kubectl is installed").isTrue();
+        assumeThat(Files.exists(K8S.resolve("overlays/dev/secrets/DB_PASSWORD"))).as("scripts/k8s-init.ps1 has been run").isTrue();
+        String rendered = render("scale");
+        assertThat(rendered).contains("kind: HorizontalPodAutoscaler").contains("secretName: ridex-jwt-key");
+        assertThat(rendered).as("core no longer claims the single-copy disk").doesNotContain("claimName: core-data");
+    }
+
     // ------------------------------------------------------------------ what kustomize really produces (needs kubectl)
 
     private static String render(String env) throws IOException, InterruptedException {

@@ -4,9 +4,9 @@ Production-style ride-hailing platform (Uber/Ola-style) built to learn Java full
 distributed systems and DevOps.
 
 ## Stack
-Java 21 · Spring Boot 4 · PostgreSQL · Redis · Kafka · Flyway · Resilience4j · React + TypeScript · Docker + nginx + Kubernetes (kind, kustomize)
+Java 21 · Spring Boot 4 · PostgreSQL · Redis · Kafka · Flyway · Resilience4j · React + TypeScript · Docker + nginx + Kubernetes (kind, kustomize, HPA)
 
-## Architecture (after Phase 10)
+## Architecture (after Phase 11)
 
 One API gateway in front of a core application plus four extracted services, and a shared infrastructure library. Each service has its own database. Everything can run in Docker.
 
@@ -57,6 +57,19 @@ Troubleshooting and the reasoning: [phase 9 review](docs/phase-9-review.md).
 
 Rebuilt an image? `kind load docker-image ridex/core:dev --name ridex`, then `kubectl rollout restart deployment/core -n ridex-dev`. Learn it: [kubernetes concepts](docs/kubernetes-concepts.md), [phase 10 review](docs/phase-10-review.md).
 
+#### Scaling and failure experiments (Phase 11)
+
+With the cluster from option C running (it needs about 3 to 3.5 GB; stop other containers first). Needs Java 21 (load generator) and Node.js (WebSocket demo).
+
+1. `.\scripts\k8s-scale-out.ps1`: several copies (2 gateways, 3 pricing, 2 core; notification, payment and analytics are parked to save memory).
+2. `.\scripts\k8s-lb-demo.ps1` (add `-ConnectionPerRequest`): which pod answers?
+3. `.\scripts\k8s-metrics-server.ps1` once, then `.\scripts\k8s-autoscale-demo.ps1`: pricing grows from 3 to 5 pods under load and shrinks again.
+4. `.\scripts\k8s-failure-experiments.ps1`: kill pods under load and measure what users saw.
+5. `.\scripts\k8s-websocket-demo.ps1`: live updates across core pods, and a pod killed.
+6. Back to one copy: `.\scripts\k8s-scale-in.ps1`. Do not build images while the cluster runs (the Docker VM runs out of memory).
+
+Learn it: [scaling concepts](docs/scaling-concepts.md), [phase 11 review](docs/phase-11-review.md).
+
 Use **one option at a time**: they use the same ports or the same memory (A and B also share data volumes; switching keeps your data). Each service creates its own database on first start. Logs of option B are in `logs\`.
 
 ## Tests
@@ -67,4 +80,4 @@ cd backend
 ```
 
 ## Status
-Phases 1 to 10 done: foundation, auth, rides and matching, Redis, WebSockets, Kafka and events, microservices, API gateway, Docker, Kubernetes.
+Phases 1 to 11 done: foundation, auth, rides and matching, Redis, WebSockets, Kafka and events, microservices, API gateway, Docker, Kubernetes, scaling and failure experiments.

@@ -1,0 +1,71 @@
+# SCALE: the dev environment with several copies of the stateless parts, for the Phase 11 experiments (load balancing, autoscaling,
+# failures, WebSockets across replicas). Apply it ON TOP of dev with scripts/k8s-scale-out.ps1, which first creates the Secret the core needs.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: ridex-dev
+
+resources:
+  - ../dev
+  - hpa.yaml
+
+# More copies. (pricing's count is only the STARTING point: the autoscaler in hpa.yaml takes over.)
+replicas:
+  - {name: gateway, count: 2}
+  - {name: pricing, count: 3}
+  - {name: core, count: 2}
+  # PARKED to fit a laptop: Docker's VM here has 4 GB and every extra pod is a JVM. These three are not on the paths the experiments use
+  # (fares, logins, live updates). Delete these three lines on a machine with more memory (or `kubectl scale ... --replicas=1`).
+  - {name: notification, count: 0}
+  - {name: payment, count: 0}
+  - {name: analytics, count: 0}
+
+configMapGenerator:
+  - name: ridex-config
+    behavior: merge
+    literals:
+      # TEST ONLY. The gateway rate-limits each client address (Phase 8): a load test from one machine is ONE client and would just see 429
+      # answers. Never raise limits like this in a real environment.
+      - GATEWAY_RATE=5000
+      - GATEWAY_BURST=10000
+      - GATEWAY_AUTH_RATE=5000
+      - GATEWAY_AUTH_BURST=10000
+      # The core has its OWN per-address limiter (Phase 4): 600 requests a minute per client address. Behind the gateway every request
+      # comes from a gateway pod, so a test hits it in seconds (HTTP 429). TEST ONLY, like the lines above.
+      - RIDEX_RATELIMIT_APILIMIT=1000000
+
+patches:
+  # ---- the core becomes STATELESS enough to run in two copies -----------------------------------------------------------------------
+  # Two things tied the core to one disk (see core.yaml):
+  #  1. the token SIGNING KEY. Two copies that each made their own key would sign tokens the other cannot verify (and the other services
+  #     fetch the public key from whichever copy answers). Now ONE key, kept in the Secret "ridex-jwt-key", is mounted into every copy.
+  #  2. uploaded driver documents. They now go to a scratch folder per copy, which is NOT shared: a document uploaded through one copy is
+  #     invisible to the other. Acceptable for these experiments, wrong for production (the real fix is object storage such as S3).
+  - target: {kind: Deployment, name: core}
+    patch: |-
+      - op: replace
+        path: /spec/strategy
+        value: {type: RollingUpdate, rollingUpdate: {maxSurge: 1, maxUnavailable: 0}}
+      - op: replace
+        path: /spec/template/spec/volumes/2
+        value: {name: data, emptyDir: {sizeLimit: 256Mi}}
+      - op: add
+        path: /spec/template/spec/volumes/-
+        value: {name: jwt-key, secret: {secretName: ridex-jwt-key, defaultMode: 0440}}
+      - op: add
+        path: /spec/template/spec/containers/0/volumeMounts/-
+        value: {name: jwt-key, mountPath: /app/data/keys, readOnly: true}
+  # The claim for the single-copy design is not needed any more
+  - patch: |-
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: core-data
+      $patch: delete
+  # A smaller CPU REQUEST for pricing: the autoscaler measures CPU as a percentage of the request, so a small request makes it react to
+  # a modest load on a laptop.
+  - target: {kind: Deployment, name: pricing}
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: 50m

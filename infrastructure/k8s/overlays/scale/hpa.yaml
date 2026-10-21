@@ -1,0 +1,31 @@
+# HORIZONTAL POD AUTOSCALER for the pricing service, sized for a laptop: 3 to 5 pods. (The production overlay allows up to 10; ten
+# JVM pods do not fit in a 4 GB Docker VM next to everything else.)
+#
+# HOW IT DECIDES. Every 15 seconds the autoscaler reads the average CPU use of the pods (from the metrics-server add-on) as a percentage
+# of each pod's CPU REQUEST, and applies:
+#
+#     desiredReplicas = ceil( currentReplicas x currentUtilization / targetUtilization )
+#
+# Example: 3 pods at 140% of their request, target 70%  ->  ceil(3 x 140 / 70) = 6 pods (capped at maxReplicas).
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: pricing
+spec:
+  scaleTargetRef: {apiVersion: apps/v1, kind: Deployment, name: pricing}
+  minReplicas: 3
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: {type: Utilization, averageUtilization: 70}
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 0            # react at once to a rise
+      policies:
+        - {type: Pods, value: 2, periodSeconds: 15}   # but add at most 2 pods per 15 seconds, so a spike does not overshoot wildly
+    scaleDown:
+      stabilizationWindowSeconds: 60           # shrink only after a full quiet minute (production: 300 s), so the count does not flap
+      policies:
+        - {type: Pods, value: 1, periodSeconds: 30}

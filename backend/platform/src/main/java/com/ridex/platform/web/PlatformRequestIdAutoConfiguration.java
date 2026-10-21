@@ -17,4 +17,11 @@ public class PlatformRequestIdAutoConfiguration {
         registration.setOrder(Ordered.HIGHEST_PRECEDENCE + 5);   // before security, so even rejected requests are traceable
         return registration;
     }
+
+    @Bean
+    FilterRegistrationBean<InstanceHeaderFilter> instanceHeaderFilter() {
+        FilterRegistrationBean<InstanceHeaderFilter> registration = new FilterRegistrationBean<>(new InstanceHeaderFilter());
+        registration.setOrder(Ordered.HIGHEST_PRECEDENCE + 4);
+        return registration;
+    }
 }
