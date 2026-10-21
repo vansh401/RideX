@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ridex/events/driver.application-reviewed.v1",
+  "title": "driver.application-reviewed (version 1) - the data part",
+  "description": "Published by the core on topic driver-events, key = driver user id, when an admin approves or rejects an application. Consumer: notification.",
+  "type": "object",
+  "required": ["driverUserId", "decision"],
+  "properties": {
+    "driverUserId": { "type": "string", "format": "uuid" },
+    "decision": { "enum": ["APPROVED", "REJECTED"] },
+    "reason": { "type": ["string", "null"], "description": "Why it was rejected (only for REJECTED)." }
+  },
+  "additionalProperties": true
+}

@@ -12,6 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { formatDateTime, formatINR } from '@/lib/format'
 import { PAYMENT_LABEL, PAYMENT_TONE } from '@/lib/payments'
 import { usePagedList } from '@/lib/usePagedList'
+import { GatewayPanel } from './GatewayPanel'
 
 export function AdminPaymentsPage() {
   const [status, setStatus] = useState<PaymentStatus | ''>('')
@@ -20,6 +21,7 @@ export function AdminPaymentsPage() {
   return (
     <>
       <PageHeader eyebrow="Admin" title="Payments" description="Charges made by the test gateway when rides complete." />
+      <GatewayPanel />
       <div className="mb-4 max-w-xs">
         <SelectField label="Status" value={status} onChange={(e) => setStatus(e.target.value as PaymentStatus | '')}>
           <option value="">All</option>

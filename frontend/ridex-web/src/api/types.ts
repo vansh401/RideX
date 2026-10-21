@@ -347,3 +347,16 @@ export interface DailyCount {
   status: string
   count: number
 }
+
+/** The state of the protections around the payment gateway (circuit breaker, bulkhead) and of the test gateway itself. */
+export interface GatewayStatus {
+  circuitState: 'CLOSED' | 'OPEN' | 'HALF_OPEN' | 'DISABLED' | 'FORCED_OPEN' | 'METRICS_ONLY'
+  failureRatePercent: number | null
+  bufferedCalls: number
+  failedCalls: number
+  callsRefusedByCircuit: number
+  bulkheadAvailableCalls: number
+  bulkheadMaxCalls: number
+  chaos: { mode: 'NORMAL' | 'ERROR' | 'SLOW' | 'SLOW_AFTER_PROCESSING'; delayMs: number }
+  callsReceivedByGateway: number
+}

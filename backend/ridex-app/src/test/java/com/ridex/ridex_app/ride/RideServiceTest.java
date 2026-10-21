@@ -25,7 +25,8 @@ import com.ridex.ridex_app.common.PageResponse;
 import com.ridex.ridex_app.common.ResourceNotFoundException;
 import com.ridex.ridex_app.driver.DriverProfileService;
 import com.ridex.ridex_app.driver.VehicleCategory;
-import com.ridex.ridex_app.pricing.PricingService;
+import com.ridex.ridex_app.pricing.PricingClient;
+import com.ridex.ridex_app.saga.RiderPaymentBlocks;
 import com.ridex.ridex_app.user.UserService;
 
 class RideServiceTest {
@@ -33,13 +34,14 @@ class RideServiceTest {
     private final RideRepository rideRepository = mock(RideRepository.class);
     private final RideStatusChangeRepository historyRepository = mock(RideStatusChangeRepository.class);
     private final RideDispatcher dispatcher = mock(RideDispatcher.class);
-    private final PricingService pricingService = mock(PricingService.class);
+    private final PricingClient pricingClient = mock(PricingClient.class);
+    private final RiderPaymentBlocks paymentBlocks = mock(RiderPaymentBlocks.class);
     private final UserService userService = mock(UserService.class);
     private final DriverProfileService driverProfileService = mock(DriverProfileService.class);
     private final RideRatingLookup ratingLookup = mock(RideRatingLookup.class);
     private final RideService service = new RideService(rideRepository, historyRepository, dispatcher,
-            pricingService, userService, driverProfileService, ratingLookup,
-            mock(com.ridex.ridex_app.redis.DriverLocationIndex.class));
+            pricingClient, userService, driverProfileService, ratingLookup,
+            mock(com.ridex.ridex_app.redis.DriverLocationIndex.class), paymentBlocks);
 
     private final RideTestData data = new RideTestData();
     private final UUID riderId = data.rider.getId();
@@ -61,7 +63,7 @@ class RideServiceTest {
     @Test
     void requestingARideQuotesSavesAndLooksForADriver() {
         when(userService.getActiveUser(riderId)).thenReturn(data.rider);
-        when(pricingService.estimate(any(), any(), eq(VehicleCategory.CAB))).thenReturn(RideTestData.fare());
+        when(pricingClient.quote(any(), any(), eq(VehicleCategory.CAB))).thenReturn(RideTestData.fare());
 
         RideResponse response = service.request(riderId, request());
 
@@ -83,11 +85,37 @@ class RideServiceTest {
     }
 
     @Test
+    void aRiderWhoOwesForAnEarlierRideCannotBookAgainUntilItIsPaid() {
+        UUID unpaidRide = UUID.randomUUID();
+        when(userService.getActiveUser(riderId)).thenReturn(data.rider);
+        when(paymentBlocks.firstUnpaidRide(riderId)).thenReturn(Optional.of(unpaidRide));
+
+        assertThatThrownBy(() -> service.request(riderId, request()))
+                .isInstanceOf(ConflictException.class)
+                .hasMessageContaining(unpaidRide.toString())
+                .hasMessageContaining("settle");
+        verify(pricingClient, never()).quote(any(), any(), any());
+        verify(rideRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void whenPricingIsDownNoRideIsCreated() {
+        when(userService.getActiveUser(riderId)).thenReturn(data.rider);
+        when(pricingClient.quote(any(), any(), any()))
+                .thenThrow(new com.ridex.platform.web.ServiceUnavailableException("Pricing is temporarily unavailable", 10));
+
+        assertThatThrownBy(() -> service.request(riderId, request()))
+                .isInstanceOf(com.ridex.platform.web.ServiceUnavailableException.class);
+        verify(rideRepository, never()).saveAndFlush(any());
+        verify(dispatcher, never()).tryAssign(any(), any());
+    }
+
+    @Test
     void aSuspendedRiderCannotRequest() {
         when(userService.getActiveUser(riderId)).thenThrow(new ForbiddenException("This account is not active"));
 
         assertThatThrownBy(() -> service.request(riderId, request())).isInstanceOf(ForbiddenException.class);
-        verify(pricingService, never()).estimate(any(), any(), any());
+        verify(pricingClient, never()).quote(any(), any(), any());
     }
 
     // ---------- who may see a ride ----------

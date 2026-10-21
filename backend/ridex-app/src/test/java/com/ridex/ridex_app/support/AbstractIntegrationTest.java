@@ -1,6 +1,7 @@
 package com.ridex.ridex_app.support;
 
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -21,6 +22,8 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
+// Pricing is another service: core tests plug in a stand-in with the same contract (see FakePricingConfig)
+@Import(FakePricingConfig.class)
 public abstract class AbstractIntegrationTest {
 
     private static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:17");

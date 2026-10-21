@@ -9,8 +9,7 @@ import com.ridex.ridex_app.common.LatLng;
 import com.ridex.ridex_app.driver.DriverProfile;
 import com.ridex.ridex_app.driver.Vehicle;
 import com.ridex.ridex_app.driver.VehicleCategory;
-import com.ridex.ridex_app.pricing.FareCalculator;
-import com.ridex.ridex_app.pricing.FareEstimate;
+import com.ridex.ridex_app.pricing.FareQuote;
 import com.ridex.ridex_app.user.Role;
 import com.ridex.ridex_app.user.User;
 
@@ -35,9 +34,9 @@ final class RideTestData {
         return new LatLng(new BigDecimal(lat), new BigDecimal(lng));
     }
 
-    static FareEstimate fare() {
-        return new FareEstimate(VehicleCategory.CAB, new BigDecimal("10.00"), 25,
-                new BigDecimal("50.00"), new BigDecimal("140.00"), new BigDecimal("50.00"), false,
+    static FareQuote fare() {
+        return new FareQuote(new BigDecimal("10.00"), 25,
+                new BigDecimal("50.00"), new BigDecimal("140.00"), new BigDecimal("50.00"),
                 new BigDecimal("1.00"), new BigDecimal("240.00"), new BigDecimal("12.00"), new BigDecimal("252.00"), "INR");
     }
 

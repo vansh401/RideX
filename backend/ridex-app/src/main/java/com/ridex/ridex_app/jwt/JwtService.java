@@ -5,7 +5,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
+import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
 import org.springframework.security.oauth2.jwt.JwsHeader;
 import org.springframework.security.oauth2.jwt.JwtClaimsSet;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
@@ -20,11 +20,14 @@ public class JwtService {
     private final JwtEncoder jwtEncoder;
     private final String issuer;
     private final long accessTokenTtlMinutes;
+    private final String keyId;
 
     public JwtService(JwtEncoder jwtEncoder,
+                      JwtKeys keys,
                       @Value("${ridex.jwt.issuer}") String issuer,
                       @Value("${ridex.jwt.access-token-ttl-minutes}") long accessTokenTtlMinutes) {
         this.jwtEncoder = jwtEncoder;
+        this.keyId = keys.keyId();
         this.issuer = issuer;
         this.accessTokenTtlMinutes = accessTokenTtlMinutes;
     }
@@ -45,7 +48,7 @@ public class JwtService {
                 .claim("role", user.getRole().name())
                 .build();
 
-        JwsHeader header = JwsHeader.with(MacAlgorithm.HS256).build();
+        JwsHeader header = JwsHeader.with(SignatureAlgorithm.RS256).keyId(keyId).build();
         String token = jwtEncoder.encode(JwtEncoderParameters.from(header, claims)).getTokenValue();
 
         return new AccessToken(token, expiresAt, Duration.between(now, expiresAt).toSeconds());

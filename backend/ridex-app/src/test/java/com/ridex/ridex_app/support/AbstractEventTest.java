@@ -15,23 +15,18 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 
 import com.ridex.ridex_app.driver.VehicleCategory;
-import com.ridex.ridex_app.events.ConsumerLagService;
 
 /**
- * Helpers for tests about events: raw Kafka clients (so tests see exactly what is on the topic), waiting for
- * asynchronous consumers, and a way to run a whole ride through the API.
+ * Helpers for tests about the events the core publishes: raw Kafka clients (so tests see exactly what is on the topic),
+ * waiting, and a way to run a whole ride through the API.
  */
 public abstract class AbstractEventTest extends AbstractApiTest {
 
     @Value("${spring.kafka.bootstrap-servers}")
     protected String bootstrap;
-
-    @Autowired
-    protected ConsumerLagService lagService;
 
     protected record Journey(Person rider, DriverFixture driver, String rideId) {
     }
@@ -103,15 +98,9 @@ public abstract class AbstractEventTest extends AbstractApiTest {
         return condition.getAsBoolean();
     }
 
-    /** Waits until every consumer group has handled everything published so far (lag 0, twice in a row). */
-    protected boolean awaitCaughtUp(int seconds) {
-        int[] quiet = {0};
-        return awaitTrue(() -> {
-            boolean zero = lagService.lag().stream().allMatch(l -> l.lag() == 0)
-                    && count("select count(*) from outbox_events where published_at is null") == 0;
-            quiet[0] = zero ? quiet[0] + 1 : 0;
-            return quiet[0] >= 2;
-        }, seconds);
+    /** Waits until the core's outbox is empty: everything it decided to publish is on its way to (or in) Kafka. */
+    protected boolean awaitOutboxPublished(int seconds) {
+        return awaitTrue(() -> count("select count(*) from outbox_events where published_at is null") == 0, seconds);
     }
 
     protected int count(String sql, Object... args) {
@@ -135,11 +124,9 @@ public abstract class AbstractEventTest extends AbstractApiTest {
         return new Journey(rider, driver, rideId);
     }
 
-    /** The JSON of the event that moved this ride to the given status, as stored by the audit consumer. */
-    protected String auditedEvent(String rideId, String toStatus) {
-        awaitTrue(() -> count("select count(*) from event_audit_log where event_key = ? and payload like ?",
-                rideId, "%\"to\":\"" + toStatus + "\"%") > 0, 20);
-        return jdbc.queryForObject("select payload from event_audit_log where event_key = ? and payload like ? order by id limit 1",
+    /** The JSON of the event that moved this ride to the given status, as saved in the outbox. */
+    protected String publishedEvent(String rideId, String toStatus) {
+        return jdbc.queryForObject("select payload from outbox_events where event_key = ? and payload like ? order by seq limit 1",
                 String.class, rideId, "%\"to\":\"" + toStatus + "\"%");
     }
 }

@@ -18,9 +18,10 @@ import com.ridex.ridex_app.common.PageResponse;
 import com.ridex.ridex_app.common.Paging;
 import com.ridex.ridex_app.common.ResourceNotFoundException;
 import com.ridex.ridex_app.driver.DriverProfileService;
-import com.ridex.ridex_app.pricing.FareEstimate;
+import com.ridex.ridex_app.pricing.FareQuote;
 import com.ridex.ridex_app.redis.DriverLocationIndex;
-import com.ridex.ridex_app.pricing.PricingService;
+import com.ridex.ridex_app.pricing.PricingClient;
+import com.ridex.ridex_app.saga.RiderPaymentBlocks;
 import com.ridex.ridex_app.user.User;
 import com.ridex.ridex_app.user.UserService;
 
@@ -44,28 +45,31 @@ public class RideService {
     private final RideRepository rideRepository;
     private final RideStatusChangeRepository historyRepository;
     private final RideDispatcher dispatcher;
-    private final PricingService pricingService;
+    private final PricingClient pricingClient;
     private final UserService userService;
     private final DriverProfileService driverProfileService;
     private final RideRatingLookup ratingLookup;
     private final DriverLocationIndex locations;
+    private final RiderPaymentBlocks paymentBlocks;
 
     public RideService(RideRepository rideRepository,
                        RideStatusChangeRepository historyRepository,
                        RideDispatcher dispatcher,
-                       PricingService pricingService,
+                       PricingClient pricingClient,
                        UserService userService,
                        DriverProfileService driverProfileService,
                        RideRatingLookup ratingLookup,
-                       DriverLocationIndex locations) {
+                       DriverLocationIndex locations,
+                       RiderPaymentBlocks paymentBlocks) {
         this.rideRepository = rideRepository;
         this.historyRepository = historyRepository;
         this.dispatcher = dispatcher;
-        this.pricingService = pricingService;
+        this.pricingClient = pricingClient;
         this.userService = userService;
         this.driverProfileService = driverProfileService;
         this.ratingLookup = ratingLookup;
         this.locations = locations;
+        this.paymentBlocks = paymentBlocks;
     }
 
     // ------------------------------------------------------------------ rider: request
@@ -81,7 +85,12 @@ public class RideService {
             throw new ConflictException("You already have a ride in progress");
         }
 
-        FareEstimate fare = pricingService.estimate(
+        // The compensation step of the ride-payment saga (see PaymentSagaConsumer): an unpaid ride blocks new bookings
+        paymentBlocks.firstUnpaidRide(riderId).ifPresent(unpaid -> {
+            throw new ConflictException("The payment for your ride " + unpaid + " failed. Please settle it before booking another ride");
+        });
+
+        FareQuote fare = pricingClient.quote(
                 request.pickup().location(), request.dropoff().location(), request.category());
         Instant now = Instant.now();
         Ride ride = Ride.request(rider, request.category(),

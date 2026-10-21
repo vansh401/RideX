@@ -4,6 +4,10 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
+import com.ridex.platform.contracts.EventEnvelope;
+import com.ridex.platform.contracts.RideEventData;
+import com.ridex.platform.contracts.Topics;
+import com.ridex.platform.kafka.OutboxService;
 import com.ridex.ridex_app.ride.RideStatusChanged;
 
 /**

@@ -84,8 +84,6 @@ class PermissionMatrixIntegrationTest extends AbstractIntegrationTest {
             "GET,/api/riders/me,DRIVER,403",
             "GET,/api/riders/me,ADMIN,403",
             "GET,/api/riders/me,RIDER,404",
-            "POST,/api/fares/estimate,DRIVER,403",
-            "POST,/api/fares/estimate,RIDER,400",
             "POST,/api/rides,DRIVER,403",
             "POST,/api/rides,ADMIN,403",
             "POST,/api/rides,RIDER,400",
@@ -127,36 +125,21 @@ class PermissionMatrixIntegrationTest extends AbstractIntegrationTest {
             "GET,/api/rides/00000000-0000-0000-0000-000000000001/driver-location,DRIVER,404",
             "GET,/api/rides/00000000-0000-0000-0000-000000000001/driver-location,ADMIN,404",
 
-            // ---- notifications: any signed-in user, each only their own ----
-            "GET,/api/notifications,NONE,401",
-            "GET,/api/notifications,RIDER,200",
-            "GET,/api/notifications,DRIVER,200",
-            "GET,/api/notifications,ADMIN,200",
-            "GET,/api/notifications/unread-count,NONE,401",
-            "GET,/api/notifications/unread-count,RIDER,200",
-            "POST,/api/notifications/read-all,NONE,401",
-            "POST,/api/notifications/read-all,DRIVER,200",
-            "POST,/api/notifications/00000000-0000-0000-0000-000000000001/read,RIDER,404",
-            "POST,/api/notifications/00000000-0000-0000-0000-000000000001/read,NONE,401",
+            // ---- the core's outbox: admins only. (Notifications, payments, fares and the event admin pages moved to other
+            //      services; their permission tests live with them.) ----
+            "GET,/api/admin/outbox,NONE,401",
+            "GET,/api/admin/outbox,RIDER,403",
+            "GET,/api/admin/outbox,DRIVER,403",
+            "GET,/api/admin/outbox,ADMIN,200",
 
-            // ---- payments: the people on the ride and admins; only a rider retries ----
-            "GET,/api/payments/rides/00000000-0000-0000-0000-000000000001,NONE,401",
-            "GET,/api/payments/rides/00000000-0000-0000-0000-000000000001,RIDER,404",
-            "GET,/api/payments/rides/00000000-0000-0000-0000-000000000001,DRIVER,404",
+            // ---- the public key other services use to verify our tokens: public by design ----
+            "GET,/.well-known/jwks.json,NONE,200",
+
+            // ---- paths that moved to other services are not served by the core any more ----
+            "GET,/api/notifications,ADMIN,404",
             "GET,/api/payments/rides/00000000-0000-0000-0000-000000000001,ADMIN,404",
-            "POST,/api/payments/rides/00000000-0000-0000-0000-000000000001/retry,NONE,401",
-            "POST,/api/payments/rides/00000000-0000-0000-0000-000000000001/retry,DRIVER,403",
-            "POST,/api/payments/rides/00000000-0000-0000-0000-000000000001/retry,ADMIN,403",
-            "POST,/api/payments/rides/00000000-0000-0000-0000-000000000001/retry,RIDER,404",
-            "GET,/api/admin/payments,RIDER,403",
-            "GET,/api/admin/payments,ADMIN,200",
-
-            // ---- event system: admins only ----
-            "GET,/api/admin/events/audit,DRIVER,403",
-            "GET,/api/admin/events/audit,ADMIN,200",
-            "GET,/api/admin/events/lag,RIDER,403",
-            "GET,/api/admin/events/dead-letters,ADMIN,200",
-            "GET,/api/admin/analytics/ride-status-per-day,RIDER,403",
+            "POST,/api/fares/estimate,RIDER,404",
+            "GET,/api/admin/events/lag,ADMIN,404",
     })
     void eachRoleSeesExactlyWhatItShould(String method, String path, String role, int expected) throws Exception {
         assertThat(call(method, path, role)).isEqualTo(expected);

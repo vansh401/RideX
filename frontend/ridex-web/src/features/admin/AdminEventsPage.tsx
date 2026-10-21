@@ -21,7 +21,17 @@ export function AdminEventsPage() {
   const [auditError, setAuditError] = useState<string | null>(null)
 
   const lag = usePolling(async () => (await api.get<ConsumerLag[]>('/api/admin/events/lag')).data, { intervalMs: 5000 })
-  const outbox = usePolling(async () => (await api.get<{ pending: number }>('/api/admin/events/outbox')).data, { intervalMs: 5000 })
+  // Every service that publishes events has its own outbox: the core and the payment service
+  const outbox = usePolling(
+    async () => {
+      const [core, payments] = await Promise.all([
+        api.get<{ pending: number }>('/api/admin/outbox'),
+        api.get<{ pending: number }>('/api/admin/payments/outbox'),
+      ])
+      return { pending: core.data.pending + payments.data.pending }
+    },
+    { intervalMs: 5000 },
+  )
   const dead = usePolling(
     async () => (await api.get<PageResponse<DeadLetter>>('/api/admin/events/dead-letters?size=10')).data,
     { intervalMs: 10_000 },

@@ -2,10 +2,7 @@ package com.ridex.ridex_app.security;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.nio.charset.StandardCharsets;
 
-import javax.crypto.SecretKey;
-import javax.crypto.spec.SecretKeySpec;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -14,29 +11,22 @@ import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
-import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
-import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 
-import com.nimbusds.jose.jwk.source.ImmutableSecret;
+import com.ridex.ridex_app.config.JwtConfig;
+import com.ridex.ridex_app.jwt.JwtKeys;
 import com.ridex.ridex_app.jwt.JwtService;
 import com.ridex.ridex_app.user.Role;
 import com.ridex.ridex_app.user.User;
 
 class JwtAuthenticationFilterTest {
 
-    private static SecretKey keyFrom(String secret) {
-        return new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
-    }
-
-    private final SecretKey key = keyFrom("filter-test-secret-that-is-at-least-32-bytes!!");
-    private final JwtEncoder encoder = new NimbusJwtEncoder(new ImmutableSecret<>(key));
-    private final JwtDecoder decoder =
-            NimbusJwtDecoder.withSecretKey(key).macAlgorithm(MacAlgorithm.HS256).build();
+    private final JwtKeys keys = JwtKeys.generate();
+    private final JwtEncoder encoder = new JwtConfig().jwtEncoder(keys);
+    private final JwtDecoder decoder = new JwtConfig().jwtDecoder(keys, "ridex");
     private final AccessTokenRevocations revocations = org.mockito.Mockito.mock(AccessTokenRevocations.class);
-    private final JwtService jwtService = new JwtService(encoder, "ridex", 15);
+    private final JwtService jwtService = new JwtService(encoder, keys, "ridex", 15);
     private final JwtAuthenticationFilter filter = new JwtAuthenticationFilter(decoder, revocations);
 
     @AfterEach
@@ -90,9 +80,8 @@ class JwtAuthenticationFilterTest {
 
     @Test
     void tokenSignedWithAnotherKeyIsNotAccepted() throws Exception {
-        JwtEncoder attackerEncoder = new NimbusJwtEncoder(
-                new ImmutableSecret<>(keyFrom("a-completely-different-attacker-secret-key!!")));
-        JwtService forger = new JwtService(attackerEncoder, "ridex", 15);
+        JwtKeys attackerKeys = JwtKeys.generate();   // a different RSA key pair: not the one the core publishes
+        JwtService forger = new JwtService(new JwtConfig().jwtEncoder(attackerKeys), attackerKeys, "ridex", 15);
         User admin = new User("Evil", "evil@example.com", "+919800000099", "hash", Role.ADMIN);
 
         run("Bearer " + forger.createAccessToken(admin).value());

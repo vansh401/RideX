@@ -52,6 +52,8 @@ public class SecurityConfig {
                 .formLogin(form -> form.disable())
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**", "/api/health").permitAll()
+                        // The public half of the token signing key: other services read it to verify our tokens
+                        .requestMatchers("/.well-known/jwks.json").permitAll()
                         // The WebSocket handshake itself is open; the STOMP CONNECT frame is authenticated with the
                         // JWT (see StompSecurityInterceptor), because browsers cannot set headers on a handshake
                         .requestMatchers("/ws/**").permitAll()
@@ -59,7 +61,6 @@ public class SecurityConfig {
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/riders/**").hasRole("RIDER")
-                        .requestMatchers("/api/fares/**").hasRole("RIDER")
                         // Ride endpoints: roles are enforced HERE as well as with @PreAuthorize. Method
                         // security runs only after the request body has been validated, so without these
                         // URL rules a caller with the wrong role would see validation errors instead of 403.
@@ -69,9 +70,6 @@ public class SecurityConfig {
                         .requestMatchers("/api/rides/*/cancel", "/api/rides/*/ratings").hasAnyRole("RIDER", "DRIVER")
                         .requestMatchers(HttpMethod.GET, "/api/rides", "/api/rides/current").hasAnyRole("RIDER", "DRIVER")
                         .requestMatchers(HttpMethod.GET, "/api/rides/*", "/api/rides/*/timeline", "/api/rides/*/driver-location").hasAnyRole("RIDER", "DRIVER", "ADMIN")
-                        // Payments: the people on the ride (the service narrows it further) and admins; only a rider retries
-                        .requestMatchers(HttpMethod.GET, "/api/payments/rides/*").hasAnyRole("RIDER", "DRIVER", "ADMIN")
-                        .requestMatchers(HttpMethod.POST, "/api/payments/rides/*/retry").hasRole("RIDER")
                         .requestMatchers("/api/drivers/**").hasRole("DRIVER")
                         .anyRequest().authenticated())
                 // Run our JWT filter before Spring's username/password filter position

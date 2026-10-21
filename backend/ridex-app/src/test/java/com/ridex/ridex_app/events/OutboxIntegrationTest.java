@@ -16,6 +16,8 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import com.jayway.jsonpath.JsonPath;
+import com.ridex.platform.contracts.Topics;
+import com.ridex.platform.kafka.OutboxService;
 import com.ridex.ridex_app.support.AbstractEventTest;
 
 /** The outbox: events are saved with the change, then reach Kafka, in order, keyed by ride. */
@@ -94,7 +96,7 @@ class OutboxIntegrationTest extends AbstractEventTest {
     @Test
     void eventsCarryTheEnvelopeWithAVersionSoTheirShapeCanEvolve() {
         Journey journey = completeRide(52.0, 70.0);
-        String payload = auditedEvent(journey.rideId(), "RIDE_COMPLETED");
+        String payload = publishedEvent(journey.rideId(), "RIDE_COMPLETED");
 
         assertThat(JsonPath.<String>read(payload, "$.type")).isEqualTo("ride.status-changed");
         assertThat(JsonPath.<Integer>read(payload, "$.version")).isEqualTo(1);

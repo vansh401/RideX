@@ -20,3 +20,5 @@ dist/
 Thumbs.db
 # Uploaded driver documents (development storage)
 data/
+
+logs/

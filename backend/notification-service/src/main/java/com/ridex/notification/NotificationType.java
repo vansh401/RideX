@@ -1,0 +1,16 @@
+package com.ridex.notification;
+
+public enum NotificationType {
+    RIDE_OFFER,
+    RIDE_ACCEPTED,
+    DRIVER_ARRIVED,
+    TRIP_STARTED,
+    TRIP_COMPLETED,
+    RIDE_CANCELLED,
+    NO_DRIVER_FOUND,
+    PAYMENT_RECEIVED,
+    PAYMENT_FAILED,
+    EARNING_CREDITED,
+    DRIVER_APPROVED,
+    DRIVER_REJECTED
+}

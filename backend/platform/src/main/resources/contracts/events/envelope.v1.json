@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ridex/events/envelope.v1",
+  "title": "Event envelope (version 1)",
+  "description": "The wrapper around every event on every topic. Consumers must IGNORE fields they do not know (additionalProperties is true on purpose): that is what lets a producer add fields without breaking anyone.",
+  "type": "object",
+  "required": ["eventId", "type", "version", "occurredAt", "key", "data"],
+  "properties": {
+    "eventId": { "type": "string", "format": "uuid", "description": "Unique per event. Consumers use it to recognise a duplicate delivery." },
+    "type": { "type": "string", "description": "What happened, e.g. ride.status-changed" },
+    "version": { "type": "integer", "minimum": 1, "description": "The shape of data. A consumer may refuse a version it does not know." },
+    "occurredAt": { "type": "string", "format": "date-time" },
+    "key": { "type": "string", "description": "Id of the thing the event is about; also the Kafka message key (keeps one ride's events in order)." },
+    "data": { "type": "object" }
+  },
+  "additionalProperties": true
+}

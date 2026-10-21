@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ridex/events/ride.status-changed.v1",
+  "title": "ride.status-changed (version 1) - the data part",
+  "description": "Published by the core on topic ride-events, key = ride id, every time a ride changes status. Consumers: notification, payment, analytics, audit.",
+  "type": "object",
+  "required": ["rideId", "riderUserId", "from", "to", "at"],
+  "properties": {
+    "rideId": { "type": "string", "format": "uuid" },
+    "riderUserId": { "type": "string", "format": "uuid" },
+    "driverUserId": { "type": ["string", "null"], "format": "uuid", "description": "The driver involved at that moment, if any." },
+    "from": { "type": "string", "description": "Previous status" },
+    "to": { "type": "string", "description": "New status, e.g. RIDE_COMPLETED" },
+    "actor": { "type": ["string", "null"], "description": "RIDER, DRIVER or SYSTEM" },
+    "note": { "type": ["string", "null"] },
+    "at": { "type": "string", "format": "date-time" },
+    "pickupAddress": { "type": ["string", "null"] },
+    "dropoffAddress": { "type": ["string", "null"] },
+    "fareTotal": { "type": ["number", "null"], "description": "The frozen fare, in currency. Money is a decimal number, never a float computed by the consumer." },
+    "currency": { "type": ["string", "null"], "minLength": 3, "maxLength": 3 }
+  },
+  "additionalProperties": true
+}

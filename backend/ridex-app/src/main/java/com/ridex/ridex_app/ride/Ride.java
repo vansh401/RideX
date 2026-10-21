@@ -12,7 +12,7 @@ import com.ridex.ridex_app.common.LatLng;
 import com.ridex.ridex_app.driver.DriverProfile;
 import com.ridex.ridex_app.driver.Vehicle;
 import com.ridex.ridex_app.driver.VehicleCategory;
-import com.ridex.ridex_app.pricing.FareEstimate;
+import com.ridex.ridex_app.pricing.FareQuote;
 import org.springframework.data.domain.AfterDomainEventPublication;
 import org.springframework.data.domain.DomainEvents;
 
@@ -145,7 +145,7 @@ public class Ride {
     public static Ride request(User rider, VehicleCategory category,
                                String pickupAddress, LatLng pickup,
                                String dropoffAddress, LatLng dropoff,
-                               FareEstimate fare, Instant now) {
+                               FareQuote fare, Instant now) {
         Ride ride = new Ride();
         ride.id = UUID.randomUUID();
         ride.rider = rider;

@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ridex/events/payment.v1",
+  "title": "payment.succeeded / payment.failed (version 1) - the data part",
+  "description": "Published by the payment service on topic payment-events, key = ride id. Consumers: notification, core (ride-payment saga), analytics, audit.",
+  "type": "object",
+  "required": ["paymentId", "rideId", "riderUserId", "driverUserId", "amount", "currency", "status"],
+  "properties": {
+    "paymentId": { "type": "string", "format": "uuid" },
+    "rideId": { "type": "string", "format": "uuid" },
+    "riderUserId": { "type": "string", "format": "uuid" },
+    "driverUserId": { "type": "string", "format": "uuid" },
+    "amount": { "type": "number" },
+    "currency": { "type": "string", "minLength": 3, "maxLength": 3 },
+    "status": { "enum": ["SUCCEEDED", "FAILED", "PENDING"] },
+    "failureReason": { "type": ["string", "null"] },
+    "attempts": { "type": "integer", "minimum": 1 },
+    "gatewayReference": { "type": ["string", "null"] }
+  },
+  "additionalProperties": true
+}

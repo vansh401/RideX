@@ -24,8 +24,7 @@ import com.ridex.ridex_app.driver.DriverProfileRepository;
 import com.ridex.ridex_app.driver.Vehicle;
 import com.ridex.ridex_app.driver.VehicleCategory;
 import com.ridex.ridex_app.driver.VehicleRepository;
-import com.ridex.ridex_app.pricing.FareCalculator;
-import com.ridex.ridex_app.pricing.FareEstimate;
+import com.ridex.ridex_app.pricing.FareQuote;
 import com.ridex.ridex_app.rider.RiderProfileRepository;
 import com.ridex.ridex_app.support.AbstractApiTest;
 import com.ridex.ridex_app.support.ApiClient.Response;
@@ -52,7 +51,6 @@ class RideDataIntegrationTest extends AbstractApiTest {
     @Autowired private DriverProfileRepository driverProfileRepository;
     @Autowired private VehicleRepository vehicleRepository;
     @Autowired private RiderProfileRepository riderProfileRepository;
-    @Autowired private FareCalculator fareCalculator;
     @Autowired private RideService rideService;
     @Autowired private EntityManagerFactory entityManagerFactory;
 
@@ -63,8 +61,9 @@ class RideDataIntegrationTest extends AbstractApiTest {
     private static final LatLng A = new LatLng(new BigDecimal("24.000000"), new BigDecimal("76.000000"));
     private static final LatLng B = new LatLng(new BigDecimal("24.045000"), new BigDecimal("76.000000"));
 
-    private FareEstimate fare() {
-        return fareCalculator.calculate(VehicleCategory.CAB, new BigDecimal("5.00"), 15);
+    private FareQuote fare() {
+        return new FareQuote(new BigDecimal("5.00"), 15, new BigDecimal("50.00"), new BigDecimal("70.00"), new BigDecimal("30.00"),
+                new BigDecimal("1.00"), new BigDecimal("150.00"), new BigDecimal("7.50"), new BigDecimal("157.50"), "INR");
     }
 
     /** A finished ride, written straight to the database through the entity (no HTTP). */

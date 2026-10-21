@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
+import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
 import org.springframework.security.oauth2.jwt.JwsHeader;
 import org.springframework.security.oauth2.jwt.JwtClaimsSet;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
@@ -28,6 +28,9 @@ class WebSocketSecurityIntegrationTest extends AbstractApiTest {
 
     @Autowired
     private JwtEncoder jwtEncoder;
+
+    @Autowired
+    private com.ridex.ridex_app.jwt.JwtKeys keys;
 
     @Autowired
     private StringRedisTemplate redis;
@@ -80,7 +83,7 @@ class WebSocketSecurityIntegrationTest extends AbstractApiTest {
         JwtClaimsSet claims = JwtClaimsSet.builder().issuer(issuer).subject(rider.user().getId().toString())
                 .issuedAt(past).expiresAt(past.plusSeconds(60)).id("expired-token")
                 .claim("role", "RIDER").build();
-        String expired = jwtEncoder.encode(JwtEncoderParameters.from(JwsHeader.with(MacAlgorithm.HS256).build(), claims)).getTokenValue();
+        String expired = jwtEncoder.encode(JwtEncoderParameters.from(JwsHeader.with(SignatureAlgorithm.RS256).keyId(keys.keyId()).build(), claims)).getTokenValue();
 
         StompTestClient client = connect(expired);
 

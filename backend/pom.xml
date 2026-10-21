@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<parent>
+		<groupId>org.springframework.boot</groupId>
+		<artifactId>spring-boot-starter-parent</artifactId>
+		<version>4.1.1</version>
+		<relativePath/> <!-- lookup parent from repository -->
+	</parent>
+
+	<groupId>com.ridex</groupId>
+	<artifactId>ridex-parent</artifactId>
+	<version>0.0.1-SNAPSHOT</version>
+	<packaging>pom</packaging>
+	<name>RideX</name>
+	<description>RideX: the shared platform library, the core application and the extracted services</description>
+
+	<!--
+		Phase 7. One repository, several deployable services. Each service is its own Spring Boot
+		application with its own database and its own release cycle; they talk through Kafka events and a few
+		REST calls. Only INFRASTRUCTURE is shared (the platform library): never domain logic.
+
+		Build everything once:   ./mvnw.cmd -DskipTests install          (from this folder)
+		Run one service:         cd payment-service  and  ../mvnw.cmd spring-boot:run
+	-->
+	<modules>
+		<module>platform</module>
+		<module>ridex-app</module>
+		<module>notification-service</module>
+		<module>payment-service</module>
+		<module>pricing-service</module>
+		<module>analytics-service</module>
+		<!-- Last on purpose: it inspects the compiled classes and migrations of all the others -->
+		<module>architecture-tests</module>
+	</modules>
+
+	<properties>
+		<java.version>21</java.version>
+		<resilience4j.version>2.3.0</resilience4j.version>
+	</properties>
+
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>com.ridex</groupId>
+				<artifactId>ridex-platform</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
+	<build>
+		<pluginManagement>
+			<plugins>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-surefire-plugin</artifactId>
+					<configuration>
+						<!-- UTC, and a modest explicit heap so tests also start on laptops running Docker Desktop -->
+						<argLine>-Duser.timezone=UTC -Xmx640m -XX:MaxMetaspaceSize=256m -XX:+UseSerialGC</argLine>
+					</configuration>
+				</plugin>
+			</plugins>
+		</pluginManagement>
+	</build>
+</project>

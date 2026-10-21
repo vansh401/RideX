@@ -30,9 +30,10 @@ class DriverReviewServiceTest {
     private final DriverDocumentRepository documentRepository = mock(DriverDocumentRepository.class);
     private final DriverDocumentService documentService = mock(DriverDocumentService.class);
     private final VehicleService vehicleService = mock(VehicleService.class);
+    private final com.ridex.platform.kafka.OutboxService outbox = mock(com.ridex.platform.kafka.OutboxService.class);
     private final DriverReviewService service =
             new DriverReviewService(profileRepository, documentRepository, documentService, vehicleService,
-                    mock(com.ridex.ridex_app.notification.NotificationService.class));
+                    outbox);
 
     private final UUID adminId = UUID.randomUUID();
     private final User user = new User("Ravi Kumar", "ravi@example.com", "+919812345678", "hash", Role.DRIVER);
@@ -78,6 +79,38 @@ class DriverReviewServiceTest {
         assertThat(detail.approvalStatus()).isEqualTo(ApprovalStatus.APPROVED);
         assertThat(detail.reviewedBy()).isEqualTo(adminId);
         assertThat(detail.email()).isEqualTo("ravi@example.com");
+    }
+
+    @Test
+    void approvalPublishesAnEventForTheNotificationServiceInTheSameTransaction() {
+        DriverProfile profile = profile(LocalDate.now().plusYears(1));
+        hasLicenceDocument(profile, true);
+
+        service.approve(adminId, profile.getId());
+
+        ArgumentCaptor<Object> data = ArgumentCaptor.forClass(Object.class);
+        verify(outbox).append(eq("driver-events"), eq(user.getId().toString()), eq("driver.application-reviewed"), data.capture());
+        assertThat(data.getValue()).isEqualTo(new com.ridex.platform.contracts.DriverReviewedEventData(user.getId(), "APPROVED", null));
+    }
+
+    @Test
+    void rejectionPublishesTheTrimmedReason() {
+        DriverProfile profile = profile(LocalDate.now().plusYears(1));
+
+        service.reject(adminId, profile.getId(), "  Photo is blurry ");
+
+        ArgumentCaptor<Object> data = ArgumentCaptor.forClass(Object.class);
+        verify(outbox).append(eq("driver-events"), eq(user.getId().toString()), eq("driver.application-reviewed"), data.capture());
+        assertThat(data.getValue()).isEqualTo(new com.ridex.platform.contracts.DriverReviewedEventData(user.getId(), "REJECTED", "Photo is blurry"));
+    }
+
+    @Test
+    void aFailedApprovalPublishesNothing() {
+        DriverProfile profile = profile(LocalDate.now().minusDays(1));
+        hasLicenceDocument(profile, true);
+
+        assertThatThrownBy(() -> service.approve(adminId, profile.getId())).isInstanceOf(ConflictException.class);
+        org.mockito.Mockito.verifyNoInteractions(outbox);
     }
 
     @Test

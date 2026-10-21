@@ -114,3 +114,38 @@ All values are in `application.properties` (`ridex.rate-limit.*`).
 
 An access token is rejected with `401` right away (not after 15 minutes) when its user was suspended, had a
 password reset, or logged out with it. See [redis-concepts.md](redis-concepts.md) section 4.8.
+
+## Tokens are signed with a private key (Phase 7)
+
+Access tokens used to be signed with a secret shared by everything that verified them. Now that there are several services, that
+would let any of them forge a token. Since Phase 7 tokens use **RS256**: the core signs with a private RSA key that never leaves
+it, and publishes the matching public key.
+
+| | |
+|---|---|
+| Public key (JWKS) | `GET /.well-known/jwks.json`, public, cacheable. Other services use it to verify tokens |
+| Token header | `alg: RS256`, `kid: <fingerprint of the public key>` (so keys can be rotated) |
+| Claims | `sub` (user id), `role`, `iss` (`ridex`), `jti`, `iat`, `exp`, `iat_ms` |
+| Private key | created on the first start in `data/keys/jwt-signing-key.pem` (git-ignored; never commit it) |
+| `JWT_SECRET` | **no longer used** |
+
+**Everyone is logged out once** when you first start the new version: tokens signed the old way do not verify with the new key.
+Log in again.
+
+A token is accepted by the core and by every service (notification, payment, pricing, analytics) in exactly the same way:
+signature, expiry, issuer, and the shared Redis revocation list. See [microservices-concepts.md](microservices-concepts.md) section 3.
+
+### Endpoints that moved to other services
+
+The browser still uses one address; the gateway (Vite proxy in development) routes by path. The URLs and JSON are unchanged.
+
+| Path | Now served by |
+|---|---|
+| `/api/notifications/**` | notification-service (:8081) |
+| `/api/payments/**`, `/api/admin/payments/**` | payment-service (:8082) |
+| `/api/fares/**` | pricing-service (:8083) |
+| `/api/admin/events/{audit,dead-letters,lag}`, `/api/admin/analytics/**` | analytics-service (:8084) |
+| `/api/admin/events/outbox` | **replaced by** `/api/admin/outbox` (core) and `/api/admin/payments/outbox` (payment) |
+
+New behaviour of the core: `POST /api/rides` answers `409` while the rider has an unpaid ride (the compensation step of the
+ride-payment saga), and `503` with `Retry-After` while the pricing service is unavailable.

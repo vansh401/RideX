@@ -58,6 +58,15 @@ public class GlobalExceptionHandler {
                 .body(base.getBody());
     }
 
+    // A service we depend on is not answering: tell the client to come back shortly instead of failing with a 500
+    @ExceptionHandler(com.ridex.platform.web.ServiceUnavailableException.class)
+    public ResponseEntity<ApiError> handleServiceUnavailable(com.ridex.platform.web.ServiceUnavailableException ex, HttpServletRequest request) {
+        ResponseEntity<ApiError> base = build(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage(), request, Map.of());
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .header("Retry-After", String.valueOf(ex.getRetryAfterSeconds()))
+                .body(base.getBody());
+    }
+
     @ExceptionHandler(ConflictException.class)
     public ResponseEntity<ApiError> handleConflict(ConflictException ex, HttpServletRequest request) {
         return build(HttpStatus.CONFLICT, ex.getMessage(), request, Map.of());

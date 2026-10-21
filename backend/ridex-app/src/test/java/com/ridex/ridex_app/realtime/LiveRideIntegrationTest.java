@@ -7,6 +7,8 @@ import java.util.List;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
 
 import com.jayway.jsonpath.JsonPath;
 import com.ridex.ridex_app.driver.VehicleCategory;
@@ -21,6 +23,9 @@ import com.ridex.ridex_app.support.StompTestClient;
 class LiveRideIntegrationTest extends AbstractApiTest {
 
     private final List<StompTestClient> open = new ArrayList<>();
+
+    @Autowired
+    private StringRedisTemplate redis;
 
     private StompTestClient listener(String token, String... destinations) {
         StompTestClient client = StompTestClient.connect(serverPort(), token);
@@ -237,97 +242,40 @@ class LiveRideIntegrationTest extends AbstractApiTest {
         api().post("/api/drivers/me/availability/offline", driver.token(), null);
     }
 
-    // ------------------------------------------------------------------ notifications
+    // ------------------------------------------------------------------ notifications from ANOTHER service
 
-    @Test
-    void notificationsAreStoredAndPushedLive() {
-        Person admin = newAdmin();
-        double lat = 43.0, lng = 70.0;
-        DriverFixture driver = newOnlineDriver(admin, VehicleCategory.CAB, lat + 0.009, lng);
-        Person rider = newRider();
-        StompTestClient riderLive = listener(rider.token(), "/user/queue/notifications");
-        StompTestClient driverLive = listener(driver.token(), "/user/queue/notifications");
+    // The notification service stores notifications and pushes them by publishing to a Redis channel; this core application
+    // owns the WebSocket connections and delivers what arrives. These tests play the part of the notification service.
 
-        String rideId = expect(201, api().post("/api/rides", rider.token(), rideBody("CAB", lat, lng))).id();
-        // Notifications now travel through Kafka (outbox, topic, consumer), so they arrive a moment later than the instant WebSocket push
-        String offerNote = driverLive.next("/user/queue/notifications", 20);
-        assertThat(field(offerNote, "$.type")).isEqualTo("RIDE_OFFER");
-        assertThat(field(offerNote, "$.title")).isEqualTo("New ride request");
-        assertThat(JsonPath.<Boolean>read(offerNote, "$.read")).isFalse();
-
-        expect(200, api().post("/api/rides/" + rideId + "/accept", driver.token(), null));
-        String accepted = riderLive.next("/user/queue/notifications", 20);
-        assertThat(field(accepted, "$.type")).isEqualTo("RIDE_ACCEPTED");
-
-        // ...and they are stored, so a reload still shows them
-        Response list = expect(200, api().get("/api/notifications", rider.token()));
-        assertThat(list.<List<String>>json("$.content[*].type")).contains("RIDE_ACCEPTED");
-        assertThat(awaitUnread(rider, 1)).isTrue();
-
-        cleanUpRide(rideId, rider);
-        api().post("/api/drivers/me/availability/offline", driver.token(), null);
+    private void pushLikeTheNotificationService(String userId, String json) {
+        redis.convertAndSend("realtime:events", "{\"kind\":\"USER\",\"target\":\"" + userId + "\",\"destination\":\"/queue/notifications\",\"payload\":" + json + "}");
     }
 
     @Test
-    void readingNotificationsUpdatesTheUnreadCountAndOnlyTheOwnerMayDoIt() {
-        Person admin = newAdmin();
-        double lat = 44.0, lng = 70.0;
-        DriverFixture driver = newOnlineDriver(admin, VehicleCategory.CAB, lat + 0.009, lng);
-        Person rider = newRider();
-        Person other = newRider();
-        String rideId = expect(201, api().post("/api/rides", rider.token(), rideBody("CAB", lat, lng))).id();
-        api().post("/api/rides/" + rideId + "/accept", driver.token(), null);
-        api().post("/api/rides/" + rideId + "/arrived", driver.token(), null);
-        // Notifications are created by a Kafka consumer a moment after the ride changes: wait for both
-        assertThat(awaitUnread(rider, 2)).isTrue();
-        String firstId = expect(200, api().get("/api/notifications", rider.token())).json("$.content[0].id");
+    void aNotificationPushedByAnotherServiceReachesOnlyTheRecipientsBrowser() {
+        Person recipient = newRider();
+        Person bystander = newRider();
+        StompTestClient recipientLive = listener(recipient.token(), "/user/queue/notifications");
+        StompTestClient bystanderLive = listener(bystander.token(), "/user/queue/notifications");
 
-        expect(404, api().post("/api/notifications/" + firstId + "/read", other.token(), null));   // not theirs
-        assertThat(expect(200, api().get("/api/notifications/unread-count", rider.token())).<Integer>json("$.count")).isEqualTo(2);
+        pushLikeTheNotificationService(recipient.user().getId().toString(), "{\"type\":\"RIDE_ACCEPTED\",\"title\":\"Driver on the way\",\"read\":false}");
 
-        expect(204, api().post("/api/notifications/" + firstId + "/read", rider.token(), null));
-        assertThat(expect(200, api().get("/api/notifications/unread-count", rider.token())).<Integer>json("$.count")).isEqualTo(1);
-
-        assertThat(expect(200, api().post("/api/notifications/read-all", rider.token(), null)).<Integer>json("$.updated")).isEqualTo(1);
-        assertThat(expect(200, api().get("/api/notifications/unread-count", rider.token())).<Integer>json("$.count")).isZero();
-        assertThat(expect(200, api().get("/api/notifications", other.token())).<List<Object>>json("$.content"))
-                .as("another user's list stays empty").isEmpty();
-
-        cleanUpRide(rideId, rider);
-        api().post("/api/drivers/me/availability/offline", driver.token(), null);
+        String received = recipientLive.next("/user/queue/notifications", 10);
+        assertThat(received).isNotNull();
+        assertThat(field(received, "$.type")).isEqualTo("RIDE_ACCEPTED");
+        assertThat(field(received, "$.title")).isEqualTo("Driver on the way");
+        assertThat(bystanderLive.next("/user/queue/notifications", 1)).as("nobody else hears it").isNull();
     }
 
     @Test
-    void aNewlyApprovedDriverIsNotified() {
-        Person admin = newAdmin();
+    void aMalformedPushFromAnotherServiceIsIgnoredAndTheBridgeKeepsWorking() {
+        Person recipient = newRider();
+        StompTestClient live = listener(recipient.token(), "/user/queue/notifications");
 
-        DriverFixture driver = newApprovedDriver(admin, VehicleCategory.CAB);   // an admin approved them through the API
+        redis.convertAndSend("realtime:events", "this is not json");
+        pushLikeTheNotificationService(recipient.user().getId().toString(), "{\"type\":\"TRIP_COMPLETED\",\"title\":\"Trip complete\",\"read\":false}");
 
-        Response list = expect(200, api().get("/api/notifications", driver.token()));
-        assertThat(list.<List<String>>json("$.content[*].type")).contains("DRIVER_APPROVED");
-    }
-
-    @Test
-    void anUnauthenticatedCallerCannotReadNotifications() {
-        assertThat(api().get("/api/notifications", null).status()).isEqualTo(401);
-        assertThat(api().get("/api/notifications/unread-count", null).status()).isEqualTo(401);
-    }
-
-    private boolean awaitUnread(Person person, int expected) {
-        long deadline = System.currentTimeMillis() + 30_000;
-        while (System.currentTimeMillis() < deadline) {
-            Response count = api().get("/api/notifications/unread-count", person.token());
-            if (count.status() == 200 && count.<Integer>json("$.count") == expected) {
-                return true;
-            }
-            try {
-                Thread.sleep(200);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                return false;
-            }
-        }
-        return false;
+        assertThat(field(live.next("/user/queue/notifications", 10), "$.type")).isEqualTo("TRIP_COMPLETED");
     }
 
     private void cleanUpRide(String rideId, Person rider) {
