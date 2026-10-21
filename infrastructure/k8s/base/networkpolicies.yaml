@@ -1,0 +1,132 @@
+# NETWORK POLICIES: who may connect to whom. By default every pod in a cluster can talk to every other pod. These rules flip that:
+# nothing is allowed unless a rule below allows it ("default deny"), then each connection RIDEX needs is allowed explicitly.
+#
+# Only INGRESS (incoming) traffic is restricted here; outgoing traffic is unrestricted to keep the file readable.
+# IMPORTANT: a NetworkPolicy is only enforced if the cluster network plugin (CNI) supports it. If it does not, these objects exist and
+# silently do nothing. docs/kubernetes-concepts.md shows how to test whether they are enforced.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+spec:
+  podSelector: {}                            # every pod in the namespace
+  policyTypes: [Ingress]                     # and no ingress rules: nothing may connect
+---
+# The ingress controller (in its own namespace) may reach the website and the gateway
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-controller
+spec:
+  podSelector:
+    matchExpressions:
+      - {key: app.kubernetes.io/name, operator: In, values: [web, gateway]}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels: {kubernetes.io/metadata.name: ingress-nginx}
+---
+# The gateway may reach each service
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-gateway-to-services
+spec:
+  podSelector:
+    matchExpressions:
+      - {key: app.kubernetes.io/name, operator: In, values: [core, notification, payment, pricing, analytics]}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector: {matchLabels: {app.kubernetes.io/name: gateway}}
+---
+# Every service may reach the core (to fetch the public key that verifies tokens)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-services-to-core
+spec:
+  podSelector: {matchLabels: {app.kubernetes.io/name: core}}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchExpressions:
+              - {key: app.kubernetes.io/name, operator: In, values: [notification, payment, pricing, analytics]}
+      ports:
+        - {port: 8080}
+---
+# The core asks pricing for a quote when a ride is requested
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-core-to-pricing
+spec:
+  podSelector: {matchLabels: {app.kubernetes.io/name: pricing}}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector: {matchLabels: {app.kubernetes.io/name: core}}
+      ports:
+        - {port: 8083}
+---
+# The website container proxies /api to the gateway (the path used by the Docker Compose layout)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-web-to-gateway
+spec:
+  podSelector: {matchLabels: {app.kubernetes.io/name: gateway}}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector: {matchLabels: {app.kubernetes.io/name: web}}
+      ports:
+        - {port: 8000}
+---
+# The databases accept connections ONLY from the services that use them
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-apps-to-postgres
+spec:
+  podSelector: {matchLabels: {app.kubernetes.io/name: postgres}}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchExpressions:
+              - {key: app.kubernetes.io/name, operator: In, values: [core, notification, payment, analytics]}
+      ports:
+        - {port: 5432}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-apps-to-redis
+spec:
+  podSelector: {matchLabels: {app.kubernetes.io/name: redis}}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchExpressions:
+              - {key: app.kubernetes.io/name, operator: In, values: [core, notification, payment, pricing, analytics, gateway]}
+      ports:
+        - {port: 6379}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-apps-to-kafka
+spec:
+  podSelector: {matchLabels: {app.kubernetes.io/name: kafka}}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchExpressions:
+              - {key: app.kubernetes.io/name, operator: In, values: [core, notification, payment, analytics]}
+      ports:
+        - {port: 9092}

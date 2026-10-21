@@ -135,6 +135,12 @@ class PermissionMatrixIntegrationTest extends AbstractIntegrationTest {
             // ---- the public key other services use to verify our tokens: public by design ----
             "GET,/.well-known/jwks.json,NONE,200",
 
+            // ---- Kubernetes probes: public, and they show no details ----
+            "GET,/actuator/health/liveness,NONE,200",
+            "GET,/actuator/health/readiness,NONE,200",
+            "GET,/actuator/env,ADMIN,404",
+            "GET,/actuator/env,NONE,401",
+
             // ---- paths that moved to other services are not served by the core any more ----
             "GET,/api/notifications,ADMIN,404",
             "GET,/api/payments/rides/00000000-0000-0000-0000-000000000001,ADMIN,404",

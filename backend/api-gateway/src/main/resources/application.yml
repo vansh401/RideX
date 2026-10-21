@@ -8,10 +8,14 @@
 
 server:
   port: 8000
+  # On a stop signal finish the requests in progress before exiting (rolling updates drop none)
+  shutdown: graceful
 
 spring:
   application:
     name: api-gateway
+  lifecycle:
+    timeout-per-shutdown-phase: 25s
   data:
     redis:
       host: ${REDIS_HOST:localhost}

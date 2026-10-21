@@ -1,0 +1,109 @@
+# postgres: the database server (one server, four databases, as in Docker Compose).
+#
+# WHY A STATEFULSET AND NOT A DEPLOYMENT. A Deployment treats pods as interchangeable cattle: any pod can be killed and replaced by a new
+# one with a new name, on any node, with an empty disk. A database is a pet:
+#   - it needs a STABLE IDENTITY (postgres-0 stays postgres-0 after a restart), and
+#   - it needs ITS OWN DISK that follows it (volumeClaimTemplates creates one PersistentVolumeClaim per pod; the data survives pod deletion).
+# Even so, running a production database in plain pods puts backups, replication, failover and upgrades on you. Real systems use a managed
+# database (RDS, Cloud SQL) or an operator (CloudNativePG, Zalando). This file is the honest minimum for a development cluster.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  labels:
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/part-of: ridex
+    app.kubernetes.io/component: data
+spec:
+  serviceName: postgres                        # the headless Service below: gives the pod a stable DNS name (postgres-0.postgres)
+  replicas: 1
+  podManagementPolicy: OrderedReady
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: postgres
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: postgres
+        app.kubernetes.io/part-of: ridex
+        app.kubernetes.io/component: data
+    spec:
+      serviceAccountName: ridex
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: 60        # time for PostgreSQL to finish its checkpoint on shutdown
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999                         # the "postgres" user of the image
+        runAsGroup: 999
+        fsGroup: 999
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: postgres
+          image: postgres:17
+          ports:
+            - {name: postgres, containerPort: 5432}
+          env:
+            - {name: POSTGRES_DB, value: ridex_db}
+            - {name: POSTGRES_USER, value: ridex}
+            # The password comes from the Secret, as a file (no password in the pod specification)
+            - {name: POSTGRES_PASSWORD_FILE, value: /run/secrets/DB_PASSWORD}
+            # A sub-folder of the volume: a freshly formatted volume has a "lost+found" folder that PostgreSQL refuses to initialise over
+            - {name: PGDATA, value: /var/lib/postgresql/data/pgdata}
+          resources:
+            requests: {cpu: 100m, memory: 128Mi}
+            limits: {memory: 384Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: [ALL]}
+          startupProbe:
+            exec: {command: [pg_isready, -U, ridex, -d, ridex_db]}
+            periodSeconds: 5
+            failureThreshold: 24
+          readinessProbe:
+            exec: {command: [pg_isready, -U, ridex, -d, ridex_db]}
+            periodSeconds: 5
+            timeoutSeconds: 3
+          livenessProbe:
+            exec: {command: [pg_isready, -U, ridex, -d, ridex_db]}
+            periodSeconds: 15
+            timeoutSeconds: 3
+            failureThreshold: 4
+          volumeMounts:
+            - {name: data, mountPath: /var/lib/postgresql/data}
+            - {name: run, mountPath: /var/run/postgresql}
+            - {name: secrets, mountPath: /run/secrets, readOnly: true}
+      volumes:
+        - name: run
+          emptyDir: {}
+        - name: secrets
+          secret:
+            secretName: ridex-secrets
+            defaultMode: 0440
+            items:
+              - {key: DB_PASSWORD, path: DB_PASSWORD}
+  # One PersistentVolumeClaim ("a request for disk") per pod, created from this template and NOT deleted when the pod or the StatefulSet
+  # is deleted. The cluster's default StorageClass turns the claim into a real PersistentVolume.
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests:
+            storage: 2Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  labels:
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/part-of: ridex
+spec:
+  clusterIP: None                              # headless: no virtual address; "postgres" resolves straight to the pod
+  selector:
+    app.kubernetes.io/name: postgres
+  ports:
+    - {name: postgres, port: 5432, targetPort: postgres}

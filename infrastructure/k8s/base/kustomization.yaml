@@ -1,0 +1,55 @@
+# The BASE: everything that is the same in every environment. The overlays (../overlays/dev, staging, prod) add a namespace and the
+# differences. Kustomize merges them with no templating language: plain YAML in, plain YAML out.
+#
+#   kubectl kustomize infrastructure/k8s/overlays/dev      shows the final YAML without applying anything
+#   kubectl apply -k infrastructure/k8s/overlays/dev       applies it
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - serviceaccount.yaml
+  - core.yaml
+  - notification.yaml
+  - payment.yaml
+  - pricing.yaml
+  - analytics.yaml
+  - gateway.yaml
+  - web.yaml
+  - postgres.yaml
+  - redis.yaml
+  - kafka.yaml
+  - ingress.yaml
+  - networkpolicies.yaml
+  - pdb.yaml
+
+# CONFIGMAP: non-secret settings, handed to every Java pod as environment variables (envFrom). Because the names are Kubernetes Service
+# names ("core", "pricing"), they are the SAME in dev, staging and prod: each namespace has its own "core" Service.
+# The generator appends a hash of the content to the name: change a value and the name changes, so Deployments referencing it roll out
+# new pods by themselves. (A plain ConfigMap edit would leave running pods on the old values.)
+configMapGenerator:
+  - name: ridex-config
+    literals:
+      - REDIS_HOST=redis
+      - KAFKA_BOOTSTRAP=kafka:9092
+      - JWKS_URI=http://core:8080/.well-known/jwks.json
+      - CORE_URL=http://core:8080
+      - CORE_WS_URL=ws://core:8080
+      - NOTIFICATION_URL=http://notification:8081
+      - PAYMENT_URL=http://payment:8082
+      - PRICING_URL=http://pricing:8083
+      - ANALYTICS_URL=http://analytics:8084
+      # Reads /run/secrets/* as configuration (DB_PASSWORD, SERVICE_TOKEN), exactly as in Docker Compose
+      - SPRING_CONFIG_IMPORT=optional:configtree:/run/secrets/
+      # Addresses allowed to tell the gateway who the real client is: the ingress controller pod address (private ranges)
+      - GATEWAY_TRUSTED_PROXIES=172[.](1[6-9]|2[0-9]|3[01])[.].*|10[.].*|192[.]168[.].*
+      # --- the settings that differ per environment (overlays replace these) ---
+      - SPRING_MAIL_HOST=mailpit
+      - SPRING_MAIL_PORT=1025
+      - RIDEX_FRONTEND_BASE_URL=http://ridex.localhost:8088
+      - RIDEX_WEBSOCKET_ALLOWED_ORIGINS=http://ridex.localhost:8088
+      - GATEWAY_ALLOWED_ORIGINS=http://ridex.localhost:8088
+
+# Labels on every object, without touching the selectors (changing a selector after creation is not allowed)
+labels:
+  - pairs:
+      app.kubernetes.io/managed-by: kustomize

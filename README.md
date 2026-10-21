@@ -4,9 +4,9 @@ Production-style ride-hailing platform (Uber/Ola-style) built to learn Java full
 distributed systems and DevOps.
 
 ## Stack
-Java 21 · Spring Boot 4 · PostgreSQL · Redis · Kafka · Flyway · Resilience4j · React + TypeScript · Docker + nginx
+Java 21 · Spring Boot 4 · PostgreSQL · Redis · Kafka · Flyway · Resilience4j · React + TypeScript · Docker + nginx + Kubernetes (kind, kustomize)
 
-## Architecture (after Phase 9)
+## Architecture (after Phase 10)
 
 One API gateway in front of a core application plus four extracted services, and a shared infrastructure library. Each service has its own database. Everything can run in Docker.
 
@@ -21,7 +21,7 @@ One API gateway in front of a core application plus four extracted services, and
 | analytics-service | 8084 | audit log, daily counts, dead letters, consumer lag |
 | platform (library) | | event contracts, outbox, idempotent consumers, JWT validation |
 
-Read: [service map](docs/service-map.md) · [microservices concepts](docs/microservices-concepts.md) · [gateway concepts](docs/gateway-concepts.md) · [docker concepts](docs/docker-concepts.md) · [phase 7 review](docs/phase-7-review.md) · [phase 8 review](docs/phase-8-review.md) · [phase 9 review](docs/phase-9-review.md) · [event contracts](docs/event-contracts.md)
+Read: [service map](docs/service-map.md) · [microservices concepts](docs/microservices-concepts.md) · [gateway concepts](docs/gateway-concepts.md) · [docker concepts](docs/docker-concepts.md) · [phase 7 review](docs/phase-7-review.md) · [phase 8 review](docs/phase-8-review.md) · [phase 9 review](docs/phase-9-review.md) · [kubernetes concepts](docs/kubernetes-concepts.md) · [phase 10 review](docs/phase-10-review.md) · [event contracts](docs/event-contracts.md)
 
 ## Run it (Windows, PowerShell)
 
@@ -46,7 +46,18 @@ Troubleshooting and the reasoning: [phase 9 review](docs/phase-9-review.md).
 6. Frontend: `cd frontend\ridex-web`, then `npm run dev` → http://localhost:5173
 7. Stop: `.\scripts\stop-services.ps1`
 
-Use **one option at a time**: both use the same ports and the same data volumes (switching keeps your data). Each service creates its own database on first start. Logs of option B are in `logs\`.
+### Option C: in a local Kubernetes cluster (kind)
+
+1. Stop Option A (`docker compose down`): the cluster needs about 3 GB inside Docker's VM. Build the images once if they do not exist: `cd infrastructure\docker-compose`, then `docker compose build`.
+2. Get **kind** (a local cluster in one Docker container): download `kind-windows-amd64` from https://github.com/kubernetes-sigs/kind/releases and save it as `tools\kind.exe` (git-ignored). `kubectl` comes with Docker Desktop.
+3. Once: `.\scripts\k8s-init.ps1` (creates the git-ignored dev secrets).
+4. `.\scripts\k8s-up.ps1` (cluster, images, ingress controller, RideX; the first run downloads about 1.2 GB).
+5. Open **http://ridex.localhost:8088**. Check it: `.\scripts\k8s-smoke.ps1` (add `-Chaos` to break things on purpose).
+6. Remove it all: `.\scripts\k8s-down.ps1`.
+
+Rebuilt an image? `kind load docker-image ridex/core:dev --name ridex`, then `kubectl rollout restart deployment/core -n ridex-dev`. Learn it: [kubernetes concepts](docs/kubernetes-concepts.md), [phase 10 review](docs/phase-10-review.md).
+
+Use **one option at a time**: they use the same ports or the same memory (A and B also share data volumes; switching keeps your data). Each service creates its own database on first start. Logs of option B are in `logs\`.
 
 ## Tests
 
@@ -56,4 +67,4 @@ cd backend
 ```
 
 ## Status
-Phases 1 to 9 done: foundation, auth, rides and matching, Redis, WebSockets, Kafka and events, microservices, API gateway, Docker.
+Phases 1 to 10 done: foundation, auth, rides and matching, Redis, WebSockets, Kafka and events, microservices, API gateway, Docker, Kubernetes.

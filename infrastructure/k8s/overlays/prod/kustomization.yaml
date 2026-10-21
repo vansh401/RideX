@@ -1,0 +1,77 @@
+# PROD: real users. Several replicas, autoscaling for the parts that can scale, images from a registry with fixed version tags,
+# TLS. Host names, registry and version below are placeholders.
+#
+# IMPORTANT for a real production: postgres, redis and kafka in ../../base are single-pod StatefulSets meant for development. In
+# production use a managed database / cache / Kafka, or operators that handle replication, backups and failover, and delete those
+# three files from the resources list (or patch the connection settings to point at the managed services).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: ridex-prod
+
+resources:
+  - ../../base
+  - namespace.yaml
+  - hpa.yaml
+
+# Secrets are created outside the repository (see the staging overlay).
+
+# IMAGES: built by the CI pipeline, pushed to a registry, referenced by an exact version. Never ":latest", never "dev".
+images:
+  - {name: ridex/core, newName: ghcr.io/example-org/ridex-core, newTag: "1.0.0"}
+  - {name: ridex/notification, newName: ghcr.io/example-org/ridex-notification, newTag: "1.0.0"}
+  - {name: ridex/payment, newName: ghcr.io/example-org/ridex-payment, newTag: "1.0.0"}
+  - {name: ridex/pricing, newName: ghcr.io/example-org/ridex-pricing, newTag: "1.0.0"}
+  - {name: ridex/analytics, newName: ghcr.io/example-org/ridex-analytics, newTag: "1.0.0"}
+  - {name: ridex/gateway, newName: ghcr.io/example-org/ridex-gateway, newTag: "1.0.0"}
+  - {name: ridex/web, newName: ghcr.io/example-org/ridex-web, newTag: "1.0.0"}
+
+# Gateway and pricing replicas are decided by the autoscaler (hpa.yaml), so they are not set here.
+replicas:
+  - {name: web, count: 2}
+  - {name: notification, count: 2}      # consumers of a Kafka topic with 3 partitions: up to 3 can share the work
+  - {name: payment, count: 2}
+  - {name: analytics, count: 2}
+
+configMapGenerator:
+  - name: ridex-config
+    behavior: merge
+    literals:
+      - SPRING_MAIL_HOST=smtp.example.com
+      - SPRING_MAIL_PORT=587
+      - RIDEX_FRONTEND_BASE_URL=https://ridex.example.com
+      - RIDEX_WEBSOCKET_ALLOWED_ORIGINS=https://ridex.example.com
+      - GATEWAY_ALLOWED_ORIGINS=https://ridex.example.com
+
+patches:
+  - target: {kind: Ingress, name: ridex}
+    patch: |-
+      - op: replace
+        path: /spec/rules/0/host
+        value: ridex.example.com
+      - op: add
+        path: /spec/tls
+        value:
+          - hosts: [ridex.example.com]
+            secretName: ridex-tls
+      # cert-manager (installed in the cluster) obtains and renews the certificate for ridex-tls
+      - op: add
+        path: /metadata/annotations/cert-manager.io~1cluster-issuer
+        value: letsencrypt-prod
+  # More headroom for the busiest components
+  - target: {kind: Deployment, name: gateway}
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: 512Mi
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: 250m
+  - target: {kind: Deployment, name: core}
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: 768Mi
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: 500m

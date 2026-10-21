@@ -29,3 +29,9 @@ replay_pid*.log
 
 # Docker secret files created by scripts/docker-init.ps1
 infrastructure/docker-compose/secrets/
+
+# Kubernetes dev secrets created by scripts/k8s-init.ps1
+infrastructure/k8s/overlays/dev/secrets/
+
+# Local tools downloaded by the Kubernetes scripts (kind)
+tools/

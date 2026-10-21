@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ridex-dev
+  labels:
+    app.kubernetes.io/part-of: ridex
+    # POD SECURITY ADMISSION: the cluster itself checks every pod created here.
+    #   enforce=baseline  refuse pods that are clearly dangerous (privileged, host network, ...)
+    #   warn/audit=restricted  tell me (on apply / in the audit log) about anything short of the strictest profile
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/audit: restricted

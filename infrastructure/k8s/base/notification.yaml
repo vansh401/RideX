@@ -1,0 +1,112 @@
+# notification: Turns events into stored and live notifications.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification
+  labels:
+    app.kubernetes.io/name: notification
+    app.kubernetes.io/part-of: ridex
+    app.kubernetes.io/component: backend
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3                      # old ReplicaSets kept so `kubectl rollout undo` works
+  # Start one extra pod and only remove an old one when the new one is READY: capacity never drops during an update.
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: notification
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: notification
+        app.kubernetes.io/part-of: ridex
+        app.kubernetes.io/component: backend
+    spec:
+      serviceAccountName: ridex
+      automountServiceAccountToken: false      # the app never talks to the Kubernetes API, so it gets no credentials for it
+      # Without this, Kubernetes injects variables such as REDIS_PORT=tcp://10.0.0.5:6379 for every Service in the namespace. Spring
+      # reads REDIS_PORT as a port number and would fail to start.
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: 40        # preStop (8 s) + graceful shutdown (up to 25 s) + margin
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001                         # mounted volumes become writable for this group
+        seccompProfile:
+          type: RuntimeDefault                 # the container runtime's default filter of dangerous system calls
+      containers:
+        - name: notification
+          image: ridex/notification:dev
+          imagePullPolicy: IfNotPresent
+          ports:
+            - {name: http, containerPort: 8081}
+          # ConfigMap "ridex-config": hostnames of the other services and other per-environment settings
+          envFrom:
+            - configMapRef: {name: ridex-config}
+          env:
+            - name: SPRING_DATASOURCE_URL
+              value: jdbc:postgresql://postgres:5432/notification_db
+          resources:
+            requests: {cpu: 100m, memory: 250Mi}   # what the scheduler reserves for this pod
+            limits: {memory: 384Mi}                          # above this the container is killed. No CPU limit: throttling hurts latency
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+          # --- probes ---------------------------------------------------------------------------------------------------------
+          # STARTUP: "has it finished starting?" Until it passes, the other two probes do not run, so a slow start is not mistaken for a hang.
+          startupProbe:
+            httpGet: {path: /actuator/health/liveness, port: http}
+            periodSeconds: 5
+            failureThreshold: 48               # up to 4 minutes
+          # LIVENESS: "is it stuck?" If it fails, Kubernetes RESTARTS the container.
+          livenessProbe:
+            httpGet: {path: /actuator/health/liveness, port: http}
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          # READINESS: "can it take traffic right now?" If it fails, the pod is taken OUT of the Service (not restarted).
+          readinessProbe:
+            httpGet: {path: /actuator/health/readiness, port: http}
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          lifecycle:
+            preStop:
+              # When a pod is deleted, "remove it from the Service" and "send it SIGTERM" happen at the same time. Waiting a few seconds
+              # lets every proxy stop sending it requests before it starts shutting down.
+              exec: {command: [sleep, "8"]}
+          volumeMounts:
+            - {name: tmp, mountPath: /tmp}
+            - {name: secrets, mountPath: /run/secrets, readOnly: true}
+      volumes:
+        - name: tmp
+          emptyDir: {sizeLimit: 64Mi}
+        # Secrets are mounted as FILES under /run/secrets and read by Spring (spring.config.import=configtree:/run/secrets/).
+        # Only the keys this service needs are mounted.
+        - name: secrets
+          secret:
+            secretName: ridex-secrets
+            defaultMode: 0440
+            items:
+              - {key: DB_PASSWORD, path: DB_PASSWORD}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notification
+  labels:
+    app.kubernetes.io/name: notification
+    app.kubernetes.io/part-of: ridex
+spec:
+  # ClusterIP (the default): a stable virtual address and DNS name ("notification") inside the cluster. It spreads requests over every READY pod
+  # whose labels match the selector.
+  selector:
+    app.kubernetes.io/name: notification
+  ports:
+    - {name: http, port: 8081, targetPort: http}

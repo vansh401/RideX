@@ -1,0 +1,34 @@
+# The way in from outside the cluster. An Ingress is only a set of ROUTING RULES; an ingress CONTROLLER (here ingress-nginx, installed
+# once per cluster) is the program that reads them and does the routing. Without a controller this object does nothing.
+#
+# Why these rules: the browser needs one address. /api and /ws go to the gateway (which checks tokens, rate-limits and routes to the
+# services); everything else is the website. Because the gateway receives the traffic straight from the ingress controller, it learns
+# the real client address from the X-Forwarded-For header the controller sets (GATEWAY_TRUSTED_PROXIES in the ConfigMap).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ridex
+  labels:
+    app.kubernetes.io/part-of: ridex
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: 8m          # driver document uploads are up to 6 MB
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"   # a WebSocket is idle for long stretches
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: ridex.localhost                  # overlays replace this with the real host name of each environment
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service: {name: gateway, port: {name: http}}
+          - path: /ws
+            pathType: Prefix
+            backend:
+              service: {name: gateway, port: {name: http}}
+          - path: /
+            pathType: Prefix
+            backend:
+              service: {name: web, port: {name: http}}

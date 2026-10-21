@@ -1,0 +1,30 @@
+# POD DISRUPTION BUDGETS. Pods are sometimes removed on purpose ("voluntary disruption"): an administrator drains a node to upgrade it,
+# the cluster autoscaler shrinks the cluster. A budget tells Kubernetes how much of a service may be down at the same moment.
+# "maxUnavailable: 1" means: evict one pod at a time, never two. (With a single replica this does not block anything; with the three
+# replicas of production it keeps two serving while the third moves.)
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: gateway
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels: {app.kubernetes.io/name: gateway}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: pricing
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels: {app.kubernetes.io/name: pricing}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: web
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels: {app.kubernetes.io/name: web}

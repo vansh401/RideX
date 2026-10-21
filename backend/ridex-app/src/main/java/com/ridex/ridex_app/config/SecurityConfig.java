@@ -52,6 +52,8 @@ public class SecurityConfig {
                 .formLogin(form -> form.disable())
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**", "/api/health").permitAll()
+                        // Kubernetes probes (state of the application only; no details are shown)
+                        .requestMatchers("/actuator/health/**").permitAll()
                         // The public half of the token signing key: other services read it to verify our tokens
                         .requestMatchers("/.well-known/jwks.json").permitAll()
                         // The WebSocket handshake itself is open; the STOMP CONNECT frame is authenticated with the

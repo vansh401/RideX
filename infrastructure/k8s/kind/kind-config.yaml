@@ -1,0 +1,20 @@
+# A local Kubernetes cluster made with "kind" (Kubernetes IN Docker): the whole cluster is one Docker container that plays the part of a
+# node. Delete the container and the cluster is gone, which makes it a safe place to experiment.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: ridex
+nodes:
+  - role: control-plane                       # one node that runs both the cluster brain (control plane) and our pods (a laptop cluster)
+    # The Kubernetes version is pinned on purpose. Docker Desktop's Linux VM uses the old "cgroup v1" resource-control interface, and
+    # Kubernetes 1.35 and newer refuse to run on it. 1.34 is the newest that still does. (Newer Docker/WSL kernels use cgroup v2: then
+    # remove this line and take kind's default.) Check yours with:  docker info --format "{{.CgroupVersion}}"
+    image: kindest/node:v1.34.11
+    kubeadmConfigPatches:
+      - |
+        kind: InitConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "ingress-ready=true"  # lets the ingress controller run on this node
+    extraPortMappings:                        # publish the node ports on your machine so a browser can reach the ingress controller
+      - {containerPort: 80, hostPort: 8088, listenAddress: "127.0.0.1", protocol: TCP}
+      - {containerPort: 443, hostPort: 8443, listenAddress: "127.0.0.1", protocol: TCP}

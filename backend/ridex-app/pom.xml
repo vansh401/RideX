@@ -30,6 +30,12 @@
 	</properties>
 	<dependencies>
 
+		<!-- Phase 10: /actuator/health/liveness and /readiness for Kubernetes probes -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-actuator</artifactId>
+		</dependency>
+
 		<!-- Phase 7: event contracts, outbox, idempotent consumers and JWT helpers shared by every service -->
 		<dependency>
 			<groupId>com.ridex</groupId>

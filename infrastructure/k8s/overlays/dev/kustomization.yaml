@@ -1,0 +1,25 @@
+# DEV: the local cluster on your laptop (kind). One replica of everything, a mail catcher instead of a real mail server, and secrets
+# generated on your machine.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# NAMESPACE: a named partition of the cluster. Everything below is created inside "ridex-dev". Names (Services, ConfigMaps...) only
+# need to be unique within a namespace, and DNS names like "core" resolve inside the caller's own namespace, so the same files can be
+# applied to ridex-staging and ridex-prod without any change to the service-to-service addresses.
+namespace: ridex-dev
+
+resources:
+  - ../../base
+  - namespace.yaml
+  - mailpit.yaml
+
+# SECRETS for dev only: made from files in ./secrets, which scripts/k8s-init.ps1 creates and git ignores. Staging and prod do NOT generate
+# secrets from files in the repository; they expect "ridex-secrets" to be created by the people or the tool that own those secrets.
+# disableNameSuffixHash: keep the plain name "ridex-secrets" (the base refers to it by that name).
+generatorOptions:
+  disableNameSuffixHash: true
+secretGenerator:
+  - name: ridex-secrets
+    files:
+      - DB_PASSWORD=secrets/DB_PASSWORD
+      - SERVICE_TOKEN=secrets/SERVICE_TOKEN

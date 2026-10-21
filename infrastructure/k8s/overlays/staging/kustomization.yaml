@@ -1,0 +1,54 @@
+# STAGING: a production-like copy for testing releases. More than one replica of the stateless services, a real mail service, its own host
+# name. The numbers and names here are placeholders: set them for your real environment.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: ridex-staging
+
+resources:
+  - ../../base
+  - namespace.yaml
+
+# NO secretGenerator. The Secret "ridex-secrets" (keys DB_PASSWORD and SERVICE_TOKEN) is created outside this repository, for example
+#   kubectl create secret generic ridex-secrets -n ridex-staging --from-literal=DB_PASSWORD=... --from-literal=SERVICE_TOKEN=...
+# or delivered by a secret manager (External Secrets Operator, Sealed Secrets, Vault). Secrets never live in git in readable form.
+
+# IMAGES: built by the CI pipeline and pushed to a registry; staging runs the release candidate of the next version, production the
+# version that was promoted. Never the local "dev" images.
+images:
+  - {name: ridex/core, newName: ghcr.io/example-org/ridex-core, newTag: "1.1.0-rc.1"}
+  - {name: ridex/notification, newName: ghcr.io/example-org/ridex-notification, newTag: "1.1.0-rc.1"}
+  - {name: ridex/payment, newName: ghcr.io/example-org/ridex-payment, newTag: "1.1.0-rc.1"}
+  - {name: ridex/pricing, newName: ghcr.io/example-org/ridex-pricing, newTag: "1.1.0-rc.1"}
+  - {name: ridex/analytics, newName: ghcr.io/example-org/ridex-analytics, newTag: "1.1.0-rc.1"}
+  - {name: ridex/gateway, newName: ghcr.io/example-org/ridex-gateway, newTag: "1.1.0-rc.1"}
+  - {name: ridex/web, newName: ghcr.io/example-org/ridex-web, newTag: "1.1.0-rc.1"}
+
+# More copies of the stateless parts. The core stays at 1 (its uploads and signing key are on one volume, see core.yaml).
+replicas:
+  - {name: gateway, count: 2}
+  - {name: pricing, count: 2}
+  - {name: web, count: 2}
+
+# SETTINGS that differ from the base: only these keys change, the rest of the ConfigMap is inherited
+configMapGenerator:
+  - name: ridex-config
+    behavior: merge
+    literals:
+      - SPRING_MAIL_HOST=smtp.staging.example.com
+      - SPRING_MAIL_PORT=587
+      - RIDEX_FRONTEND_BASE_URL=https://staging.ridex.example.com
+      - RIDEX_WEBSOCKET_ALLOWED_ORIGINS=https://staging.ridex.example.com
+      - GATEWAY_ALLOWED_ORIGINS=https://staging.ridex.example.com
+
+patches:
+  - target: {kind: Ingress, name: ridex}
+    patch: |-
+      - op: replace
+        path: /spec/rules/0/host
+        value: staging.ridex.example.com
+      - op: add
+        path: /spec/tls
+        value:
+          - hosts: [staging.ridex.example.com]
+            secretName: ridex-staging-tls
