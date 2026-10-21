@@ -1,0 +1,149 @@
+# RideX API gateway: the ONE address the browser talks to.
+#
+# Reading guide. A ROUTE has three parts:
+#   predicates  "does this request belong to me?"        (here: the path)
+#   uri         "which service do I forward it to?"
+#   filters     "what do I do to the request/response on the way?" (here: rate limiting)
+# The first matching route (lowest order) wins, so specific routes come before the catch-all.
+
+server:
+  port: 8000
+
+spring:
+  application:
+    name: api-gateway
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+  cloud:
+    gateway:
+      server:
+        webflux:
+          # X-Forwarded-For tells services the real address of the caller. for-append=false REPLACES whatever the client sent instead of
+          # adding to it: a client could otherwise pretend to be someone else by writing its own value there.
+          # Spring Cloud Gateway's own X-Forwarded-* handling is replaced by ClientAddressHeadersFilter, which does one simple thing:
+          # X-Forwarded-For = the real address of the connection, whatever the client wrote.
+          x-forwarded:
+            enabled: false
+          # Never wait for ever on a service. Without a response timeout a hung service holds the caller's connection open until the
+          # browser gives up. A late answer becomes a clear 504 instead.
+          httpclient:
+            connect-timeout: ${GATEWAY_CONNECT_TIMEOUT_MS:2000}
+            response-timeout: ${GATEWAY_RESPONSE_TIMEOUT:15s}
+          # Default filters were given up on purpose: every route says explicitly what it does.
+          globalcors:
+            cors-configurations:
+              '[/**]':
+                allowed-origins: ${GATEWAY_ALLOWED_ORIGINS:http://localhost:5173}
+                allowed-methods: GET,POST,PUT,PATCH,DELETE,OPTIONS
+                allowed-headers: Authorization,Content-Type,X-Request-Id
+                exposed-headers: X-Request-Id,Retry-After,X-RateLimit-Remaining
+                allow-credentials: false   # tokens travel in a header, never in cookies
+                max-age: 3600
+          routes:
+            # ---- sign in / sign up: the strictest limit (password guessing, e-mail sending) ----
+            - id: core-auth
+              uri: ${CORE_URL:http://localhost:8080}
+              order: 10
+              predicates:
+                - Path=/api/auth/**
+              filters:
+                - name: RequestRateLimiter
+                  args:
+                    redis-rate-limiter.replenishRate: ${GATEWAY_AUTH_RATE:5}
+                    redis-rate-limiter.burstCapacity: ${GATEWAY_AUTH_BURST:15}
+                    redis-rate-limiter.requestedTokens: 1
+                    key-resolver: "#{@clientAddressKeyResolver}"
+
+            # ---- services that were extracted in Phase 7 ----
+            - id: notification-service
+              uri: ${NOTIFICATION_URL:http://localhost:8081}
+              order: 20
+              predicates:
+                - Path=/api/notifications/**
+              filters: &general-limit
+                - name: RequestRateLimiter
+                  args:
+                    redis-rate-limiter.replenishRate: ${GATEWAY_RATE:30}
+                    redis-rate-limiter.burstCapacity: ${GATEWAY_BURST:60}
+                    redis-rate-limiter.requestedTokens: 1
+                    key-resolver: "#{@clientAddressKeyResolver}"
+
+            - id: payment-service
+              uri: ${PAYMENT_URL:http://localhost:8082}
+              order: 20
+              predicates:
+                - Path=/api/payments/**,/api/admin/payments/**
+              filters: *general-limit
+
+            - id: pricing-service
+              uri: ${PRICING_URL:http://localhost:8083}
+              order: 20
+              predicates:
+                - Path=/api/fares/**
+              filters: *general-limit
+
+            - id: analytics-service
+              uri: ${ANALYTICS_URL:http://localhost:8084}
+              order: 20
+              predicates:
+                - Path=/api/admin/events/**,/api/admin/analytics/**
+              filters: *general-limit
+
+            # ---- live updates. A WebSocket is an HTTP request that upgrades itself, hence the ws:// scheme ----
+            # No rate limit here: it is one long connection. The token is checked inside the STOMP CONNECT frame by the core,
+            # because a browser cannot add a header to a WebSocket handshake (see docs/gateway-concepts.md).
+            - id: core-websocket
+              uri: ${CORE_WS_URL:ws://localhost:8080}
+              order: 30
+              predicates:
+                - Path=/ws/**
+
+            # ---- everything else belongs to the core (rides, drivers, users, ratings, admin lists...) ----
+            - id: core
+              uri: ${CORE_URL:http://localhost:8080}
+              order: 1000
+              predicates:
+                - Path=/**
+              filters: *general-limit
+
+ridex:
+  gateway:
+    # Where tokens are verified. In normal operation the core's public-key endpoint; keys can rotate without touching the gateway.
+    jwks-uri: ${JWKS_URI:http://localhost:8080/.well-known/jwks.json}
+    issuer: ridex
+    # Paths that need no token. Everything else needs a valid one. (method "*" = any)
+    public-paths:
+      - "*:/api/auth/**"
+      - "GET:/api/health"
+      - "GET:/.well-known/**"
+      - "*:/ws/**"
+      - "GET:/v3/api-docs/**"
+      - "GET:/swagger-ui/**"
+      - "GET:/swagger-ui.html"
+      - "GET:/actuator/health/**"
+    # Paths that exist inside the platform and must never be reachable from outside
+    blocked-paths:
+      - "/internal/**"
+      - "/mock-gateway/**"
+      - "/actuator/**"       # except health, which public-paths lists and the check below allows
+
+    # What GET /gateway/services (admin only) asks, to show which services are alive
+    services:
+      - { name: core, health-url: "${CORE_URL:http://localhost:8080}/api/health" }
+      - { name: notification, health-url: "${NOTIFICATION_URL:http://localhost:8081}/actuator/health" }
+      - { name: payment, health-url: "${PAYMENT_URL:http://localhost:8082}/actuator/health" }
+      - { name: pricing, health-url: "${PRICING_URL:http://localhost:8083}/actuator/health" }
+      - { name: analytics, health-url: "${ANALYTICS_URL:http://localhost:8084}/actuator/health" }
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+

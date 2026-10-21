@@ -32,8 +32,9 @@ class ServiceBoundaryTest {
     private static final String PRICING = "com.ridex.pricing..";
     private static final String ANALYTICS = "com.ridex.analytics..";
     private static final String PLATFORM = "com.ridex.platform..";
+    private static final String GATEWAY = "com.ridex.gateway..";
 
-    private static JavaClasses core, notification, payment, pricing, analytics, platform;
+    private static JavaClasses core, notification, payment, pricing, analytics, platform, gateway;
 
     private static JavaClasses classesOf(String module) {
         Path target = Path.of("..", module, "target", "classes");
@@ -49,8 +50,9 @@ class ServiceBoundaryTest {
         pricing = classesOf("pricing-service");
         analytics = classesOf("analytics-service");
         platform = classesOf("platform");
+        gateway = classesOf("api-gateway");
         // A rule that checks zero classes passes for ever; make sure every module was really read
-        for (JavaClasses imported : List.of(core, notification, payment, pricing, analytics, platform)) {
+        for (JavaClasses imported : List.of(core, notification, payment, pricing, analytics, platform, gateway)) {
             org.assertj.core.api.Assertions.assertThat(imported.size()).isGreaterThan(5);
         }
     }
@@ -86,6 +88,33 @@ class ServiceBoundaryTest {
     @Test
     void theAnalyticsServiceKnowsNoOtherService() {
         independent(analytics, ANALYTICS, CORE, NOTIFICATION, PAYMENT, PRICING);
+    }
+
+    // ------------------------------------------------------------------ the gateway is only a front door
+
+    @Test
+    void theGatewayKnowsNoServiceAndNotEvenThePlatformLibrary() {
+        noClasses().that().resideInAPackage(GATEWAY)
+                .should().dependOnClassesThat().resideInAnyPackage(CORE, NOTIFICATION, PAYMENT, PRICING, ANALYTICS, PLATFORM)
+                .because("the gateway routes by URL and shares nothing with the services but the token format; the platform library is "
+                        + "servlet based and the gateway is reactive")
+                .check(gateway);
+    }
+
+    @Test
+    void theGatewayHasNoDatabaseAndNoKafkaBecauseItHoldsNoBusinessData() {
+        noClasses().that().resideInAPackage(GATEWAY)
+                .should().dependOnClassesThat().resideInAnyPackage("org.springframework.jdbc..", "org.springframework.data.jpa..",
+                        "org.springframework.kafka..", "jakarta.persistence..")
+                .because("business data and events belong to the services; the gateway keeps only rate-limit counters in Redis")
+                .check(gateway);
+    }
+
+    @Test
+    void noServiceDependsOnTheGateway() {
+        for (JavaClasses service : List.of(core, notification, payment, pricing, analytics, platform)) {
+            noClasses().should().dependOnClassesThat().resideInAPackage(GATEWAY).check(service);
+        }
     }
 
     // ------------------------------------------------------------------ the shared library stays infrastructure

@@ -45,6 +45,11 @@ public class ApiClient {
         return send(builder(path, token).GET());
     }
 
+    /** A GET with one extra request header (for example X-Forwarded-For, as sent by the API gateway). */
+    public Response get(String path, String token, String headerName, String headerValue) {
+        return send(builder(path, token).header(headerName, headerValue).GET());
+    }
+
     public Response post(String path, String token, String json) {
         return send(builder(path, token).header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(json == null ? "" : json)));

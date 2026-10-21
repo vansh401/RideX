@@ -2,7 +2,7 @@
 #
 #   .\scripts\status.ps1
 
-$services = [ordered]@{ core = 8080; notification = 8081; payment = 8082; pricing = 8083; analytics = 8084 }
+$services = [ordered]@{ gateway = 8000; core = 8080; notification = 8081; payment = 8082; pricing = 8083; analytics = 8084 }
 
 foreach ($name in $services.Keys) {
     $port = $services[$name]

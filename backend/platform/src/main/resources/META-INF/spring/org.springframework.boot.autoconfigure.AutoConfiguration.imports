@@ -2,3 +2,4 @@ com.ridex.platform.kafka.PlatformKafkaAutoConfiguration
 com.ridex.platform.security.PlatformSecurityAutoConfiguration
 com.ridex.platform.realtime.PlatformRealtimeAutoConfiguration
 com.ridex.platform.web.PlatformWebAutoConfiguration
+com.ridex.platform.web.PlatformRequestIdAutoConfiguration

@@ -48,4 +48,15 @@ class ApiRateLimitIntegrationTest extends AbstractApiTest {
 
         assertThat(api().get("/api/health", null).status()).isEqualTo(200);
     }
+
+    @Test
+    void behindTheGatewayEachRealClientHasItsOwnBucket() {
+        // The gateway (on this machine, an internal address) reports the real client in X-Forwarded-For
+        for (int i = 0; i < 5; i++) {
+            assertThat(api().get("/api/health", null, "X-Forwarded-For", "203.0.113.10").status()).isEqualTo(200);
+        }
+
+        assertThat(api().get("/api/health", null, "X-Forwarded-For", "203.0.113.10").status()).as("client A used its budget").isEqualTo(429);
+        assertThat(api().get("/api/health", null, "X-Forwarded-For", "203.0.113.11").status()).as("client B is not affected").isEqualTo(200);
+    }
 }

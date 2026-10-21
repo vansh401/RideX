@@ -6,6 +6,7 @@ The one-page picture of Phase 7. For the reasons behind it read [microservices-c
 
 | Service | Port | Database | Job | Talks to |
 |---|---|---|---|---|
+| **api-gateway** | 8000 | none (Redis for counters) | The one entry point: routing, token check, rate limit, CORS, logging | routes to everything; reads the core's public key |
 | **core** (`ridex-app`) | 8080 | `ridex_db` | Auth, users, riders, drivers, rides, matching, ratings, WebSockets. Issues the tokens | publishes `ride-events` and `driver-events`; calls **pricing** (REST); consumes `payment-events` (saga) |
 | **notification-service** | 8081 | `notification_db` | Turns events into stored and live notifications | consumes all three topics; pushes to the core's WebSockets through Redis |
 | **payment-service** | 8082 | `payment_db` | Charges riders through the payment gateway, safely | consumes `ride-events`; publishes `payment-events`; calls the **gateway** (HTTP, protected) |
@@ -19,7 +20,7 @@ Infrastructure (Docker): PostgreSQL 17 (one server, four databases), Redis 7, Ka
 
 ```mermaid
 flowchart LR
-    B[Browser] -->|"/api/* (gateway: Vite proxy or nginx)"| GW{API gateway}
+    B[Browser] -->|"/api/*, /ws (one address)"| GW{{API gateway :8000<br/>token check, rate limit, CORS, logging}}
     GW -->|"auth, users, rides, drivers, ratings, /ws"| C[core :8080]
     GW -->|"/api/notifications"| N[notification :8081]
     GW -->|"/api/payments, /api/admin/payments"| P[payment :8082]
@@ -79,18 +80,13 @@ Solid lines are work; dotted lines are the token machinery. Every service verifi
 | `/api/fares/**` | pricing |
 | `/api/admin/events/**`, `/api/admin/analytics/**` | analytics |
 
-In development the Vite proxy (`vite.config.ts`) does this routing. In production a reverse proxy does; a minimal nginx example:
+Since Phase 8 the **api-gateway** (port 8000) does this routing; the Vite proxy only forwards `/api` and `/ws` to it, so the browser sees one origin. See [gateway-concepts.md](gateway-concepts.md). In production a reverse proxy serves the frontend and forwards to the gateway; a minimal nginx example:
 
 ```nginx
-location /api/notifications { proxy_pass http://notification:8081; }
-location /api/payments      { proxy_pass http://payment:8082; }
-location /api/admin/payments{ proxy_pass http://payment:8082; }
-location /api/fares         { proxy_pass http://pricing:8083; }
-location /api/admin/events  { proxy_pass http://analytics:8084; }
-location /api/admin/analytics { proxy_pass http://analytics:8084; }
-location /ws                { proxy_pass http://core:8080; proxy_http_version 1.1;
-                              proxy_set_header Upgrade $http_upgrade; proxy_set_header Connection "upgrade"; }
-location /                  { proxy_pass http://core:8080; }
+location /api { proxy_pass http://gateway:8000; }
+location /ws  { proxy_pass http://gateway:8000; proxy_http_version 1.1;
+                proxy_set_header Upgrade $http_upgrade; proxy_set_header Connection "upgrade"; }
+location /    { root /usr/share/nginx/html; try_files $uri /index.html; }   # the built frontend
 ```
 
 ## 6. What happens when a service is down
@@ -104,12 +100,13 @@ location /                  { proxy_pass http://core:8080; }
 | **Kafka** | Auth, rides (state changes are saved with outbox rows) | Events pile up in the **outbox** instead of being lost | The relay publishes the backlog in order |
 | **Redis** | Parts that do not use it | Matching, rate limiting, the revocation list and live WebSocket fan-out depend on it (see [phase-4-review.md](phase-4-review.md) for each one's failure rule) | Resumes |
 | **payment gateway** | Everything but charging | Payments wait as `PENDING` and are retried with the same idempotency key; after repeated outages they `FAIL` and the saga blocks the rider | Pending payments complete automatically |
+| **gateway** | Each service still works on its own port (and the services keep checking tokens), but browsers have no single address | The frontend gets connection errors | Resumes at once; it holds no state |
 | **core** | Other services keep verifying tokens with the public key they cached (a few minutes) | Login, rides, new tokens, WebSockets. When the cached key expires and cannot be refreshed, services refuse tokens too | Everything resumes |
 
 ## 7. Ports and start order
 
 1. Docker: `docker compose up -d` (PostgreSQL, Redis, Kafka).
-2. **core** first: it creates the signing key and publishes the public key the others fetch.
+2. **core** first (then the gateway, which fetches the same public key): it creates the signing key and publishes the public key the others fetch.
 3. Then pricing, notification, payment, analytics in any order. (A service started before the core simply retries its key fetch on the first request.)
 4. `npm run dev` in `frontend/ridex-web`.
 
@@ -122,7 +119,9 @@ Scripts: `scripts/build-all.ps1`, `scripts/start-services.ps1 [-Only core,pricin
 | `DB_PASSWORD` | all with a database | password of the `ridex` PostgreSQL user |
 | `SERVICE_TOKEN` | core, pricing | shared secret for internal calls (generated by `start-services.ps1` into the git-ignored `data/`) |
 | `ADMIN_EMAIL`, `ADMIN_PASSWORD` | core | creates the first admin if none exists |
-| `JWKS_URI` | services | where to fetch the public key (default `http://localhost:8080/.well-known/jwks.json`) |
-| `PRICING_URL` | core | where the pricing service is (default `http://localhost:8083`) |
+| `JWKS_URI` | gateway, services | where to fetch the public key (default `http://localhost:8080/.well-known/jwks.json`) |
+| `CORE_URL`, `NOTIFICATION_URL`, `PAYMENT_URL`, `ANALYTICS_URL`, `CORE_WS_URL` | gateway | where each service is (defaults are the localhost ports) |
+| `GATEWAY_ALLOWED_ORIGINS`, `GATEWAY_RATE`, `GATEWAY_BURST`, `GATEWAY_AUTH_RATE`, `GATEWAY_AUTH_BURST` | gateway | CORS origins and rate limits |
+| `PRICING_URL` | core, gateway | where the pricing service is (default `http://localhost:8083`) |
 | `KAFKA_BOOTSTRAP`, `REDIS_HOST`, `REDIS_PORT` | all | infrastructure addresses |
 | `LEGACY_DB_URL` | notification, payment, analytics | JDBC URL of the core database, for the one-time copy of old rows (leave empty to skip) |

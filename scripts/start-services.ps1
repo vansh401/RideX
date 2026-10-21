@@ -1,7 +1,7 @@
 # Starts RideX backend services as background processes, each with its own log file in .\logs.
 #
-#   .\scripts\start-services.ps1                       core + all four services (about 1.5 GB of memory)
-#   .\scripts\start-services.ps1 -Only core,pricing    only what you need (a ride cannot be booked without pricing)
+#   .\scripts\start-services.ps1                       core + four services + the API gateway (about 1.8 GB of memory)
+#   .\scripts\start-services.ps1 -Only core,pricing,gateway    only what you need (the frontend needs the gateway; a ride cannot be booked without pricing)
 #
 # Needs: Docker Desktop running with  docker compose up -d  (PostgreSQL, Redis, Kafka), the DB_PASSWORD environment variable
 # (the password of the "ridex" database user), and a finished  .\scripts\build-all.ps1.
@@ -10,8 +10,8 @@
 # never writes them anywhere.
 
 param(
-    [ValidateSet('core', 'notification', 'payment', 'pricing', 'analytics')]
-    [string[]]$Only = @('core', 'pricing', 'notification', 'payment', 'analytics')
+    [ValidateSet('core', 'notification', 'payment', 'pricing', 'analytics', 'gateway')]
+    [string[]]$Only = @('core', 'pricing', 'notification', 'payment', 'analytics', 'gateway')
 )
 
 $ErrorActionPreference = 'Stop'
@@ -35,6 +35,10 @@ if (-not (Test-Path $tokenFile)) {
 }
 $env:SERVICE_TOKEN = (Get-Content -Raw $tokenFile).Trim()
 
+# Memory: every service is a separate JVM. The extra flags make each one lighter (simple garbage collector, quick compiler only,
+# small thread stacks); on a machine with little RAM six JVMs plus Docker can still run out, which shows up as a service that
+# silently vanishes (look for hs_err_pid files). Start fewer with -Only if that happens.
+
 # name -> (module folder, port). The core runs from its own folder because its token key and uploads live in .\data there.
 $services = [ordered]@{
     core         = @{ dir = 'backend\ridex-app';            port = 8080; heap = '-Xmx450m' }
@@ -42,6 +46,7 @@ $services = [ordered]@{
     notification = @{ dir = 'backend\notification-service'; port = 8081; heap = '-Xmx250m' }
     payment      = @{ dir = 'backend\payment-service';      port = 8082; heap = '-Xmx250m' }
     analytics    = @{ dir = 'backend\analytics-service';    port = 8084; heap = '-Xmx250m' }
+    gateway      = @{ dir = 'backend\api-gateway';          port = 8000; heap = '-Xmx250m' }
 }
 
 $pidFile = Join-Path $logs 'pids.txt'
@@ -62,7 +67,7 @@ foreach ($name in $services.Keys) {
 
     $log = Join-Path $logs "$name.log"
     $process = Start-Process -FilePath 'java' `
-        -ArgumentList @($svc.heap, '-Duser.timezone=UTC', '-jar', $jar.FullName) `
+        -ArgumentList @($svc.heap, '-XX:+UseSerialGC', '-XX:TieredStopAtLevel=1', '-Xss512k', '-XX:MaxMetaspaceSize=160m', '-Duser.timezone=UTC', '-jar', $jar.FullName) `
         -WorkingDirectory $workDir -WindowStyle Hidden -PassThru `
         -RedirectStandardOutput $log -RedirectStandardError (Join-Path $logs "$name.err.log")
     $started += "$name=$($process.Id)"

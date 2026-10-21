@@ -21,26 +21,14 @@ export default defineConfig({
     css: false,
   },
   server: {
-    // Phase 7: the backend is several services. In development this proxy plays the part of an API GATEWAY: the browser only
-    // knows one address, and each path prefix is routed to the service that owns it. The most specific prefixes come first;
-    // everything else is the core application. (In production a reverse proxy such as nginx does the same: docs/service-map.md.)
+    // Phase 8: the browser talks to ONE address, the API gateway (port 8000). It checks the token, rate-limits, and routes each path to
+    // the service that owns it (see docs/gateway-concepts.md). Nothing here knows about the individual services any more: moving a
+    // path from one service to another is a change in the gateway, not in the frontend.
+    // Because the browser only ever sees localhost:5173, requests are same-origin: no CORS is involved in development.
     proxy: {
-      '/api/notifications': { target: 'http://localhost:8081', changeOrigin: true },
-      '/api/payments': { target: 'http://localhost:8082', changeOrigin: true },
-      '/api/admin/payments': { target: 'http://localhost:8082', changeOrigin: true },
-      '/api/fares': { target: 'http://localhost:8083', changeOrigin: true },
-      '/api/admin/events': { target: 'http://localhost:8084', changeOrigin: true },
-      '/api/admin/analytics': { target: 'http://localhost:8084', changeOrigin: true },
-      '/api': {
-        target: 'http://localhost:8080',
-        changeOrigin: true,
-      },
-      // The live-updates WebSocket (STOMP) goes to the backend too
-      '/ws': {
-        target: 'http://localhost:8080',
-        ws: true,
-        changeOrigin: true,
-      },
+      '/api': { target: 'http://localhost:8000', changeOrigin: true },
+      // The live-updates WebSocket (STOMP) goes through the gateway too
+      '/ws': { target: 'http://localhost:8000', ws: true, changeOrigin: true },
     },
   },
 })

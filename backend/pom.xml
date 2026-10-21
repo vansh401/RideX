@@ -32,6 +32,7 @@
 		<module>payment-service</module>
 		<module>pricing-service</module>
 		<module>analytics-service</module>
+		<module>api-gateway</module>
 		<!-- Last on purpose: it inspects the compiled classes and migrations of all the others -->
 		<module>architecture-tests</module>
 	</modules>
