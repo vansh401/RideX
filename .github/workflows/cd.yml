@@ -131,7 +131,7 @@ jobs:
       url: ${{ vars.STAGING_URL }}
     steps:
       - uses: actions/checkout@v4
-      - uses: azure/setup-kubectl@v4
+      - uses: azure/setup-kubectl@v5
       - name: Connect to the staging cluster
         env:
           KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}    # base64 of a kubeconfig that may only touch the ridex-staging namespace
@@ -161,7 +161,7 @@ jobs:
       url: ${{ vars.PRODUCTION_URL }}
     steps:
       - uses: actions/checkout@v4
-      - uses: azure/setup-kubectl@v4
+      - uses: azure/setup-kubectl@v5
       - name: Connect to the production cluster
         env:
           KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}    # a DIFFERENT secret from staging's: same name, but each environment has its own value
