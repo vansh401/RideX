@@ -104,6 +104,8 @@ spec:
             optional: true
             defaultMode: 0440
             items:
+              - {key: STRIPE_SECRET_KEY, path: STRIPE_SECRET_KEY}
+              - {key: STRIPE_WEBHOOK_SECRET, path: STRIPE_WEBHOOK_SECRET}
               - {key: RAZORPAY_KEY_SECRET, path: RAZORPAY_KEY_SECRET}
               - {key: RAZORPAY_WEBHOOK_SECRET, path: RAZORPAY_WEBHOOK_SECRET}
 ---

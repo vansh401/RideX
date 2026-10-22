@@ -46,6 +46,7 @@ configMapGenerator:
       - SPRING_MAIL_HOST=mailpit
       - SPRING_MAIL_PORT=1025
       # Real email also needs MAIL_USERNAME / MAIL_AUTH=true / MAIL_STARTTLS=true / MAIL_FROM (see docs/payments-and-email-setup.md); the password goes in ridex-integrations
+      - STRIPE_PUBLISHABLE_KEY=
       - RAZORPAY_KEY_ID=
       - RIDEX_FRONTEND_BASE_URL=http://ridex.localhost:8088
       - RIDEX_WEBSOCKET_ALLOWED_ORIGINS=http://ridex.localhost:8088

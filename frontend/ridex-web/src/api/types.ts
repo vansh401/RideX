@@ -498,15 +498,17 @@ export interface FraudSignal {
 // Phase 15: online payments, tips, receipts, referrals, payouts, safety, chat
 
 export interface OnlineConfig {
-  provider: 'RAZORPAY' | 'MOCK'
+  provider: 'STRIPE' | 'RAZORPAY' | 'MOCK'
   publicKey: string
 }
 
 export interface OnlineOrder {
   id: string
-  provider: 'RAZORPAY' | 'MOCK'
+  provider: 'STRIPE' | 'RAZORPAY' | 'MOCK'
   publicKey: string
   orderId: string
+  /** Set for a hosted checkout (Stripe): the page the rider is sent to. */
+  checkoutUrl?: string | null
   amount: number
   currency: string
   purpose: 'TOPUP' | 'RIDE'

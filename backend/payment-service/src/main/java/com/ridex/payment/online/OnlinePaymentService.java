@@ -4,7 +4,6 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 import org.slf4j.Logger;
@@ -22,7 +21,6 @@ import com.ridex.platform.web.BadRequestException;
 import com.ridex.platform.web.ConflictException;
 import com.ridex.platform.web.ResourceNotFoundException;
 
-import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Paying online through the provider's checkout. The only thing an online payment ever does is put money into the rider's WALLET:
@@ -40,7 +38,7 @@ public class OnlinePaymentService {
     private static final Logger log = LoggerFactory.getLogger(OnlinePaymentService.class);
     private static final BigDecimal ONE_RUPEE = new BigDecimal("1.00");
 
-    public record Order(UUID id, String provider, String publicKey, String orderId, BigDecimal amount, String currency, String purpose, UUID rideId) {
+    public record Order(UUID id, String provider, String publicKey, String orderId, String checkoutUrl, BigDecimal amount, String currency, String purpose, UUID rideId) {
     }
 
     public record Confirmation(String status, String purpose, BigDecimal amount, UUID rideId) {
@@ -54,16 +52,14 @@ public class OnlinePaymentService {
     private final WalletService wallets;
     private final PaymentService payments;
     private final PaymentRepository paymentRepository;
-    private final JsonMapper mapper;
 
     public OnlinePaymentService(JdbcTemplate jdbc, CheckoutProvider provider, WalletService wallets, PaymentService payments,
-                                PaymentRepository paymentRepository, JsonMapper mapper) {
+                                PaymentRepository paymentRepository) {
         this.jdbc = jdbc;
         this.provider = provider;
         this.wallets = wallets;
         this.payments = payments;
         this.paymentRepository = paymentRepository;
-        this.mapper = mapper;
     }
 
     public CheckoutProvider provider() {
@@ -94,12 +90,13 @@ public class OnlinePaymentService {
             throw new BadRequestException("purpose must be TOPUP or RIDE");
         }
         UUID id = UUID.randomUUID();
-        CheckoutProvider.ProviderOrder order = provider.createOrder(toPay, "INR", "rx_" + id.toString().substring(0, 8));
+        String returnPath = "RIDE".equals(purpose) ? "/rides/" + rideId : "/rider/wallet";   // where a hosted checkout brings the rider back to
+        CheckoutProvider.ProviderOrder order = provider.createOrder(toPay, "INR", "rx_" + id.toString().substring(0, 8), returnPath);
         jdbc.update("""
                 insert into online_payments (id, user_id, purpose, ride_id, amount, currency, provider, provider_order_id)
                 values (?, ?, ?, ?, ?, 'INR', ?, ?)
                 """, id, userId, purpose, rideId, toPay, provider.name(), order.orderId());
-        return new Order(id, provider.name(), provider.publicKey(), order.orderId(), toPay, "INR", purpose, rideId);
+        return new Order(id, provider.name(), provider.publicKey(), order.orderId(), order.checkoutUrl(), toPay, "INR", purpose, rideId);
     }
 
     /** The browser says the payment finished. The signature proves the provider said so. */
@@ -118,27 +115,8 @@ public class OnlinePaymentService {
     /** The provider says so itself (a webhook). Safe to receive before, after or instead of the browser's confirmation. */
     @Transactional
     public void onWebhook(String rawBody, String signature) {
-        if (!provider.verifyWebhook(rawBody, signature)) {
-            throw new BadRequestException("Invalid webhook signature");
-        }
-        try {
-            Map<?, ?> body = mapper.readValue(rawBody, Map.class);
-            String event = String.valueOf(body.get("event"));
-            if (!"payment.captured".equals(event) && !"order.paid".equals(event)) {
-                return;   // other events (failed, refunded...) need nothing from us yet
-            }
-            Map<?, ?> payload = (Map<?, ?>) body.get("payload");
-            Map<?, ?> payment = (Map<?, ?>) ((Map<?, ?>) payload.get("payment")).get("entity");
-            String orderId = String.valueOf(payment.get("order_id"));
-            String paymentId = String.valueOf(payment.get("id"));
-            lock(orderId).ifPresent(row -> settle(row, orderId, paymentId));
-        } catch (RuntimeException e) {
-            if (e instanceof BadRequestException) {
-                throw e;
-            }
-            log.warn("A webhook could not be read: {}", e.getClass().getSimpleName());   // never log the body: it holds payment details
-            throw new BadRequestException("The webhook could not be read");
-        }
+        // The provider checks the signature (throws for a bad one) and says whether this event means "paid". Never log the body: it holds payment details.
+        provider.paidFromWebhook(rawBody, signature).ifPresent(paid -> lock(paid.orderId()).ifPresent(row -> settle(row, paid.orderId(), paid.paymentId())));
     }
 
     private Confirmation settle(Row row, String orderId, String paymentId) {

@@ -6,6 +6,7 @@ import java.security.MessageDigest;
 import java.time.Duration;
 import java.util.HexFormat;
 import java.util.Map;
+import java.util.Optional;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -20,6 +21,7 @@ import com.ridex.platform.web.ServiceUnavailableException;
 import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Razorpay (https://razorpay.com). Free to use in TEST MODE with test keys (no real money moves); the same code runs live with live keys.
@@ -36,6 +38,7 @@ public class RazorpayProvider implements CheckoutProvider {
     private final RestClient client;
     /** If Razorpay keeps failing we stop calling it for a few seconds instead of making every rider wait for a timeout. */
     private final CircuitBreaker breaker;
+    private final JsonMapper mapper = JsonMapper.builder().build();
 
     public RazorpayProvider(String baseUrl, String keyId, String keySecret, String webhookSecret) {
         this.keyId = keyId;
@@ -68,7 +71,7 @@ public class RazorpayProvider implements CheckoutProvider {
     }
 
     @Override
-    public ProviderOrder createOrder(BigDecimal amount, String currency, String receipt) {
+    public ProviderOrder createOrder(BigDecimal amount, String currency, String receipt, String returnPath) {
         long paise = amount.movePointRight(2).longValueExact();   // Razorpay counts in the smallest unit
         try {
             Map<?, ?> response = breaker.executeSupplier(() -> client.post().uri("/v1/orders").contentType(MediaType.APPLICATION_JSON)
@@ -89,9 +92,16 @@ public class RazorpayProvider implements CheckoutProvider {
         return constantTimeEquals(hmacHex(keySecret, orderId + "|" + paymentId), signature);
     }
 
-    @Override
     public boolean verifyWebhook(String rawBody, String signature) {
         return webhookSecret != null && !webhookSecret.isBlank() && constantTimeEquals(hmacHex(webhookSecret, rawBody), signature);
+    }
+
+    @Override
+    public Optional<PaidNotice> paidFromWebhook(String rawBody, String signatureHeader) {
+        if (!verifyWebhook(rawBody, signatureHeader)) {
+            throw new com.ridex.platform.web.BadRequestException("Invalid webhook signature");
+        }
+        return WebhookEvents.razorpay(mapper, rawBody);
     }
 
     static String hmacHex(String secret, String message) {

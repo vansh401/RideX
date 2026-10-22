@@ -33,7 +33,7 @@ public class OnlinePaymentController {
         this.service = service;
     }
 
-    /** Which provider is active and the PUBLIC key the browser needs. MOCK means "no real payments". */
+    /** Which provider is active (STRIPE, RAZORPAY or MOCK) and the PUBLIC key the browser may need. MOCK means "no real payments". */
     @GetMapping("/api/payments/online/config")
     public Map<String, Object> config() {
         return Map.of("provider", service.provider().name(), "publicKey", service.provider().publicKey());
@@ -49,10 +49,11 @@ public class OnlinePaymentController {
         return service.confirm(principal.id(), request.orderId(), request.paymentId(), request.signature());
     }
 
-    /** Called by the provider, not by a person: no login, but the signature header proves who sent it. */
+    /** Called by the provider (Stripe or Razorpay), not by a person: no login, but the signature header proves who sent it. */
     @PostMapping("/api/payments/online/webhook")
-    public Map<String, String> webhook(@RequestBody String body, @RequestHeader(value = "X-Razorpay-Signature", required = false) String signature) {
-        service.onWebhook(body, signature);
+    public Map<String, String> webhook(@RequestBody String body, @RequestHeader(value = "Stripe-Signature", required = false) String stripeSignature,
+                                       @RequestHeader(value = "X-Razorpay-Signature", required = false) String razorpaySignature) {
+        service.onWebhook(body, stripeSignature != null ? stripeSignature : razorpaySignature);
         return Map.of("status", "ok");
     }
 }

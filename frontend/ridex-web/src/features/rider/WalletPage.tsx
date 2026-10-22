@@ -9,7 +9,7 @@ import { EmptyState } from '@/components/brand/EmptyState'
 import { PageHeader } from '@/components/brand/PageHeader'
 import { Pagination } from '@/components/brand/Pagination'
 import { StatCard } from '@/components/brand/StatCard'
-import { useOnlinePayment } from '@/components/payments/useOnlinePayment'
+import { useCheckoutReturn, useOnlinePayment } from '@/components/payments/useOnlinePayment'
 import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -98,6 +98,11 @@ export function WalletPage() {
   const statement = usePagedList<WalletEntry>('/api/wallet/transactions', {}, 10)
   const [amount, setAmount] = useState('250')
   const { pay, busy, dialog } = useOnlinePayment({ name: user?.fullName, email: user?.email })
+  // Stripe sends the rider back here after its hosted page
+  useCheckoutReturn(async () => {
+    await refresh()
+    statement.reload()
+  })
 
   const value = Number(amount)
   const valid = Number.isFinite(value) && value >= 10 && value <= 10000

@@ -50,11 +50,11 @@ else {
 }
 
 # --- Phase 15: optional secrets. Empty = not configured (the test checkout and Mailpit are used). Never overwritten if they exist. ---
-foreach ($name in 'MAIL_PASSWORD', 'RAZORPAY_KEY_SECRET', 'RAZORPAY_WEBHOOK_SECRET') {
+foreach ($name in 'MAIL_PASSWORD', 'STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET', 'RAZORPAY_KEY_SECRET', 'RAZORPAY_WEBHOOK_SECRET') {
     $file = Join-Path $secrets $name
     if (-not (Test-Path $file)) {
         Write-Secret $name ''
-        Write-Host "$name created EMPTY (fill it in only if you use real email / Razorpay: docs\payments-and-email-setup.md)"
+        Write-Host "$name created EMPTY (fill it in only if you use real email / Stripe / Razorpay: docs\payments-and-email-setup.md)"
     }
 }
 

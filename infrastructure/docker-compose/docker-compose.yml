@@ -225,10 +225,13 @@ services:
     environment:
       <<: *java-environment
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/payment_db
-      # Online payments: with no key the TEST checkout is used. Razorpay TEST keys (rzp_test_...) are free: key id here (it is public),
-      # the secrets in secrets/RAZORPAY_KEY_SECRET and secrets/RAZORPAY_WEBHOOK_SECRET.
+      # Online payments: with no key the TEST checkout is used. STRIPE (preferred; free test mode) is used when secrets/STRIPE_SECRET_KEY is filled in;
+      # its publishable key (pk_test_..., public) goes here. Razorpay is the alternative (RAZORPAY_KEY_ID + its secret files).
+      STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY:-}
       RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-}
-    secrets: [DB_PASSWORD, RAZORPAY_KEY_SECRET, RAZORPAY_WEBHOOK_SECRET]
+      # Where Stripe's hosted page brings the rider back to
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+    secrets: [DB_PASSWORD, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, RAZORPAY_KEY_SECRET, RAZORPAY_WEBHOOK_SECRET]
     networks: [internal]
     mem_limit: 384m
     depends_on:
@@ -359,6 +362,10 @@ secrets:
   # Phase 15. Empty files mean "not configured" (docker-init.ps1 creates them empty); fill in your own values, never commit them.
   MAIL_PASSWORD:
     file: ./secrets/MAIL_PASSWORD
+  STRIPE_SECRET_KEY:
+    file: ./secrets/STRIPE_SECRET_KEY
+  STRIPE_WEBHOOK_SECRET:
+    file: ./secrets/STRIPE_WEBHOOK_SECRET
   RAZORPAY_KEY_SECRET:
     file: ./secrets/RAZORPAY_KEY_SECRET
   RAZORPAY_WEBHOOK_SECRET:

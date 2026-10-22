@@ -1,7 +1,10 @@
 package com.ridex.payment.online;
 
 import java.math.BigDecimal;
+import java.util.Optional;
 import java.util.UUID;
+
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * The provider used when no Razorpay keys are configured: development, tests, demos. The browser shows a "test checkout" window and
@@ -11,6 +14,8 @@ import java.util.UUID;
 public class MockCheckoutProvider implements CheckoutProvider {
 
     public static final String SIGNATURE = "mock-signature";
+
+    private final JsonMapper mapper = JsonMapper.builder().build();
 
     @Override
     public String name() {
@@ -28,7 +33,7 @@ public class MockCheckoutProvider implements CheckoutProvider {
     }
 
     @Override
-    public ProviderOrder createOrder(BigDecimal amount, String currency, String receipt) {
+    public ProviderOrder createOrder(BigDecimal amount, String currency, String receipt, String returnPath) {
         return new ProviderOrder("order_mock_" + UUID.randomUUID().toString().replace("-", "").substring(0, 14));
     }
 
@@ -38,8 +43,15 @@ public class MockCheckoutProvider implements CheckoutProvider {
                 && SIGNATURE.equals(signature);
     }
 
-    @Override
     public boolean verifyWebhook(String rawBody, String signature) {
         return SIGNATURE.equals(signature);
+    }
+
+    @Override
+    public Optional<PaidNotice> paidFromWebhook(String rawBody, String signatureHeader) {
+        if (!verifyWebhook(rawBody, signatureHeader)) {
+            throw new com.ridex.platform.web.BadRequestException("Invalid webhook signature");
+        }
+        return WebhookEvents.razorpay(mapper, rawBody);
     }
 }

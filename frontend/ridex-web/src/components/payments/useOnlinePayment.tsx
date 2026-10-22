@@ -1,4 +1,5 @@
-import { useCallback, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { api } from '@/api/client'
 import { toFriendlyError } from '@/api/errors'
@@ -8,8 +9,10 @@ import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { formatINR } from '@/lib/format'
 
 /**
- * Paying online, for both providers behind one function.
+ * Paying online, for every provider behind one function.
  *
+ *   STRIPE    the rider is sent to Stripe's own hosted page (card details never touch our site) and comes back to the page they started
+ *             from with ?session_id=...; useCheckoutReturn then asks our server to confirm it (our server asks Stripe: nothing here is trusted).
  *   RAZORPAY  the real thing (free in test mode): the provider's own window opens (card, UPI, netbanking), and our server never sees
  *             card details. When it finishes we send the provider's three values to our server, which checks the SIGNATURE.
  *   MOCK      no keys configured: a small "test checkout" window stands in, with a fake payment id and a fixed signature.
@@ -93,6 +96,10 @@ export function useOnlinePayment(user?: { name?: string; email?: string }): { pa
         setBusy(false)
         return
       }
+      if (order.provider === 'STRIPE' && order.checkoutUrl) {
+        window.location.assign(order.checkoutUrl)   // leaves the page: the busy state ends with it
+        return
+      }
       if (order.provider === 'MOCK') {
         setMock({ order, request })
         return
@@ -159,4 +166,47 @@ export function useOnlinePayment(user?: { name?: string; email?: string }): { pa
   )
 
   return { pay, busy, dialog }
+}
+
+/**
+ * Call this on any page a hosted checkout can return to. When the address has ?session_id=... (Stripe sent the rider back) it asks our server
+ * to confirm the payment, tells the rider the result, removes the parameters, and then runs onPaid. ?payment=cancelled means they closed Stripe's
+ * page without paying: nothing was charged.
+ */
+export function useCheckoutReturn(onPaid: () => void | Promise<void>) {
+  const [params, setParams] = useSearchParams()
+  const sessionId = params.get('session_id')
+  const cancelled = params.get('payment') === 'cancelled'
+  const handled = useRef<string | null>(null)
+  const latest = useRef(onPaid)
+
+  useEffect(() => {
+    latest.current = onPaid
+  })
+
+  useEffect(() => {
+    if (!sessionId && !cancelled) return
+    const key = sessionId ?? 'cancelled'
+    if (handled.current === key) return   // React runs effects twice in development: confirm once
+    handled.current = key
+    const clean = () => {
+      const next = new URLSearchParams(params)
+      next.delete('session_id')
+      next.delete('payment')
+      setParams(next, { replace: true })
+    }
+    if (cancelled || !sessionId) {
+      toast.info('Payment cancelled. You have not been charged.')
+      clean()
+      return
+    }
+    api
+      .post('/api/payments/online/verify', { orderId: sessionId, paymentId: sessionId, signature: '' })
+      .then(async () => {
+        toast.success('Payment received. Thank you!')
+        await latest.current()
+      })
+      .catch((err: unknown) => toast.error(toFriendlyError(err).message))
+      .finally(clean)
+  }, [sessionId, cancelled, params, setParams])
 }

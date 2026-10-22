@@ -6,7 +6,7 @@ import { api } from '@/api/client'
 import { toFriendlyError } from '@/api/errors'
 import type { AppNotification, Payment, Receipt } from '@/api/types'
 import { useAuth } from '@/auth/useAuth'
-import { useOnlinePayment } from '@/components/payments/useOnlinePayment'
+import { useCheckoutReturn, useOnlinePayment } from '@/components/payments/useOnlinePayment'
 import { Alert } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -104,6 +104,11 @@ export function PaymentCard({ rideId, canRetry }: { rideId: string; canRetry: bo
   )
 
   const { pay, busy, dialog } = useOnlinePayment({ name: user?.fullName, email: user?.email })
+  // Stripe sends the rider back to this ride after its hosted page
+  useCheckoutReturn(async () => {
+    setSettled(false)
+    await refresh()
+  })
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- reacts to the loaded payment
