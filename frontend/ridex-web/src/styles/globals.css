@@ -173,6 +173,23 @@
     scrollbar-color: rgb(255 255 255 / 0.16) transparent;
   }
 
+  /*
+   * Native <select> menus are drawn by the browser, which paints them white unless told otherwise,
+   * and our light text then vanishes on it. Tell the browser the menu is dark and give every option
+   * an explicit dark background and light text (works in Chrome, Edge and Firefox).
+   */
+  select {
+    color-scheme: dark;
+  }
+  select option,
+  select optgroup {
+    background-color: #14171c;
+    color: #f6f6f3;
+  }
+  select option:disabled {
+    color: #8e9096;
+  }
+
   /* Numbers line up in tables and KPI cards */
   .tabular {
     font-variant-numeric: tabular-nums;
