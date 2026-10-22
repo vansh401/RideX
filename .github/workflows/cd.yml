@@ -77,7 +77,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}   # the short-lived token of this run: no personal access token needed
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
 
       # Re-running a workflow, or tagging a commit that main already built, must not build the same thing again
       - name: Is this commit's image already in the registry?
