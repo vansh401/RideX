@@ -2,6 +2,7 @@ package com.ridex.ridex_app.ride;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 import com.ridex.ridex_app.driver.DriverProfile;
@@ -36,8 +37,16 @@ public record RideResponse(
         ActorRole cancelledBy,
         String cancelReason,
         /** The stars the viewer gave for this ride, or null if they have not rated it. */
-        Integer myRating
+        Integer myRating,
+        /** Phase 14: for a ride booked ahead, when the rider wants to be picked up; the coupon asked for; the stops and how many are done. */
+        Instant scheduledFor,
+        String couponCode,
+        List<StopView> stops,
+        int stopsDone
 ) {
+    public record StopView(int position, String address, BigDecimal latitude, BigDecimal longitude, Instant arrivedAt) {
+    }
+
     public record PlaceView(String address, BigDecimal latitude, BigDecimal longitude) {
     }
 
@@ -90,6 +99,9 @@ public record RideResponse(
                 riderView, driverView, vehicleView,
                 ride.getRequestedAt(), ride.getOfferExpiresAt(), ride.getAcceptedAt(), ride.getArrivedAt(),
                 ride.getStartedAt(), ride.getCompletedAt(), ride.getCancelledAt(),
-                ride.getCancelledBy(), ride.getCancelReason(), myRating);
+                ride.getCancelledBy(), ride.getCancelReason(), myRating,
+                ride.getScheduledFor(), ride.getCouponCode(),
+                ride.getStopsTotal() == 0 ? java.util.List.<StopView>of() : ride.getStops().stream().map(s -> new StopView(s.getPosition(), s.getAddress(), s.getLatitude(), s.getLongitude(), s.getArrivedAt())).toList(),
+                ride.getStopsDone());
     }
 }

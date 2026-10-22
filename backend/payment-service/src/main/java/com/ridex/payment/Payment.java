@@ -63,6 +63,17 @@ public class Payment {
     @Column(name = "failure_reason")
     private String failureReason;
 
+    /** WALLET or GATEWAY: how the rider actually paid (set when the payment succeeds). */
+    @Column(name = "method")
+    private String method;
+    @Column(name = "coupon_code")
+    private String couponCode;
+    /** What a coupon took off [amount]. The rider is charged [amount - discount]; the company pays the discount. */
+    @Column(nullable = false)
+    private BigDecimal discount = BigDecimal.ZERO;
+    @Column(name = "refunded_amount", nullable = false)
+    private BigDecimal refundedAmount = BigDecimal.ZERO;
+
     @Column(name = "gateway_outages", nullable = false)
     private int gatewayOutages;
 
@@ -160,6 +171,47 @@ public class Payment {
         this.updatedAt = now;
     }
 
+    /** A coupon was redeemed for this ride. Only while the payment is still open: a paid ride cannot get cheaper afterwards. */
+    public void applyCoupon(String code, BigDecimal discount) {
+        if (status == PaymentStatus.SUCCEEDED) {
+            throw new ConflictException("A payment that succeeded cannot get a coupon");
+        }
+        if (discount.signum() < 0 || discount.compareTo(amount) > 0) {
+            throw new IllegalArgumentException("a discount is between zero and the fare");
+        }
+        this.couponCode = code;
+        this.discount = discount;
+    }
+
+    /** What the rider really pays: the fare minus the coupon. */
+    public BigDecimal netAmount() {
+        return amount.subtract(discount);
+    }
+
+    public void paidWith(String method) {
+        this.method = method;
+    }
+
+    /** How much can still be given back: what the rider paid, minus what was already refunded. */
+    public BigDecimal refundable() {
+        return status == PaymentStatus.SUCCEEDED ? netAmount().subtract(refundedAmount) : BigDecimal.ZERO;
+    }
+
+    /** A refund that could not be completed gives its reserved amount back, so it can be asked for again. */
+    public void undoRefund(BigDecimal refund, Instant now) {
+        this.refundedAmount = refundedAmount.subtract(refund).max(BigDecimal.ZERO);
+        this.updatedAt = now;
+    }
+
+    /** The rule that a refund can never exceed what was paid lives here, so no caller can break it. */
+    public void recordRefund(BigDecimal refund, Instant now) {
+        if (refund.signum() <= 0 || refund.compareTo(refundable()) > 0) {
+            throw new ConflictException("A refund must be more than zero and at most " + refundable() + " (what is left of what was paid)");
+        }
+        this.refundedAmount = refundedAmount.add(refund);
+        this.updatedAt = now;
+    }
+
     public UUID getId() { return id; }
     public UUID getRideId() { return rideId; }
     public UUID getRiderUserId() { return riderUserId; }
@@ -175,4 +227,8 @@ public class Payment {
     public Instant getNextAttemptAt() { return nextAttemptAt; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
+    public String getMethod() { return method; }
+    public String getCouponCode() { return couponCode; }
+    public BigDecimal getDiscount() { return discount; }
+    public BigDecimal getRefundedAmount() { return refundedAmount; }
 }

@@ -19,7 +19,7 @@ class EventCodecTest {
 
     private static PaymentEventData payment() {
         return new PaymentEventData(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), new BigDecimal("252.00"),
-                "INR", "SUCCEEDED", null, 1, "ref");
+                "INR", "SUCCEEDED", null, 1, "ref", null, null, null);
     }
 
     @Test

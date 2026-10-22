@@ -4,6 +4,7 @@ import type { RideStatus, VehicleCategory } from '@/api/types'
 // stepper can never disagree with each other.
 
 export const STATUS_LABEL: Record<RideStatus, string> = {
+  SCHEDULED: 'Scheduled',
   REQUESTED: 'Requested',
   SEARCHING_DRIVER: 'Finding a driver',
   DRIVER_ASSIGNED: 'Driver offered',
@@ -17,6 +18,7 @@ export const STATUS_LABEL: Record<RideStatus, string> = {
 export type Tone = 'neutral' | 'accent' | 'success' | 'warning' | 'danger' | 'info'
 
 export const STATUS_TONE: Record<RideStatus, Tone> = {
+  SCHEDULED: 'info',
   REQUESTED: 'info',
   SEARCHING_DRIVER: 'warning',
   DRIVER_ASSIGNED: 'warning',
@@ -52,12 +54,12 @@ export function progressIndex(status: RideStatus): number {
 
 /** A ride that still occupies its rider (and maybe a driver). Mirrors the backend. */
 export function isActiveRide(status: RideStatus): boolean {
-  return status !== 'RIDE_COMPLETED' && status !== 'CANCELLED'
+  return status !== 'RIDE_COMPLETED' && status !== 'CANCELLED' && status !== 'SCHEDULED'
 }
 
 /** Rider may cancel until the trip starts (mirrors the backend state machine). */
 export function riderCanCancel(status: RideStatus): boolean {
-  return isActiveRide(status) && status !== 'RIDE_STARTED'
+  return status === 'SCHEDULED' || (isActiveRide(status) && status !== 'RIDE_STARTED')
 }
 
 /** A driver may cancel only after accepting and before the trip starts. */

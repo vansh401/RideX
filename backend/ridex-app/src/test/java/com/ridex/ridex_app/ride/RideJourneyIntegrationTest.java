@@ -250,7 +250,7 @@ class RideJourneyIntegrationTest extends AbstractApiTest {
 
         // and a search that has gone on too long is cancelled by the system
         dispatcher.runCycle();   // the late offer is reassigned/returned to searching
-        jdbc.update("update rides set requested_at = now() - interval '10 minutes' where id = ?::uuid", rideId);
+        jdbc.update("update rides set requested_at = now() - interval '10 minutes', search_started_at = now() - interval '10 minutes' where id = ?::uuid", rideId);
         dispatcher.runCycle();
         Response gaveUp = expect(200, api().get("/api/rides/" + rideId, rider.token()));
         assertThat(gaveUp.<String>json("$.status")).isEqualTo("CANCELLED");

@@ -62,12 +62,13 @@ class RideMetricsTest {
     void statusChangesAreCountedByTheStatusTheyEnteredAndNewRidesSeparately() {
         RideMetrics metrics = new RideMetrics(rides, registry);
 
-        metrics.onRideStatusChanged(change(null, RideStatus.REQUESTED));
-        metrics.onRideStatusChanged(change(RideStatus.REQUESTED, RideStatus.SEARCHING_DRIVER));
+        metrics.onRideStatusChanged(change(RideStatus.REQUESTED, RideStatus.SEARCHING_DRIVER));   // an ordinary ride starts looking
+        metrics.onRideStatusChanged(change(RideStatus.SCHEDULED, RideStatus.SEARCHING_DRIVER));   // a booked ride's time came
+        metrics.onRideStatusChanged(change(RideStatus.DRIVER_ASSIGNED, RideStatus.SEARCHING_DRIVER));   // a declined offer: back to searching, NOT a new request
         metrics.onRideStatusChanged(change(RideStatus.SEARCHING_DRIVER, RideStatus.CANCELLED));
 
-        assertThat(registry.get("ridex.rides.requested").counter().count()).isEqualTo(1.0);
-        assertThat(registry.get("ridex.ride.status.changes").tag("status", "SEARCHING_DRIVER").counter().count()).isEqualTo(1.0);
+        assertThat(registry.get("ridex.rides.requested").counter().count()).isEqualTo(2.0);
+        assertThat(registry.get("ridex.ride.status.changes").tag("status", "SEARCHING_DRIVER").counter().count()).isEqualTo(3.0);
         assertThat(registry.get("ridex.ride.status.changes").tag("status", "CANCELLED").counter().count()).isEqualTo(1.0);
         assertThat(registry.get("ridex.ride.status.changes").tag("status", "RIDE_COMPLETED").counter().count()).isZero();
     }

@@ -31,7 +31,7 @@ public class DeadLetterConsumer {
         this.jdbc = jdbc;
     }
 
-    @KafkaListener(topics = {Topics.RIDE_EVENTS + ".DLT", Topics.PAYMENT_EVENTS + ".DLT", Topics.DRIVER_EVENTS + ".DLT"}, groupId = Groups.DEAD_LETTERS)
+    @KafkaListener(topics = {Topics.RIDE_EVENTS + ".DLT", Topics.PAYMENT_EVENTS + ".DLT", Topics.DRIVER_EVENTS + ".DLT", Topics.COMPLAINT_EVENTS + ".DLT"}, groupId = Groups.DEAD_LETTERS)
     public void onDeadLetter(ConsumerRecord<String, String> record) {
         try {
             String originalTopic = text(record, KafkaHeaders.DLT_ORIGINAL_TOPIC);

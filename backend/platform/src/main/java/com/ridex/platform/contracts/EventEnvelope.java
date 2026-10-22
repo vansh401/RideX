@@ -21,4 +21,7 @@ public record EventEnvelope(UUID eventId, String type, int version, Instant occu
     public static final String PAYMENT_SUCCEEDED = "payment.succeeded";
     public static final String PAYMENT_FAILED = "payment.failed";
     public static final String DRIVER_APPLICATION_REVIEWED = "driver.application-reviewed";
+    public static final String PAYMENT_REFUNDED = "payment.refunded";
+    public static final String COMPLAINT_FILED = "complaint.filed";
+    public static final String COMPLAINT_RESOLVED = "complaint.resolved";
 }

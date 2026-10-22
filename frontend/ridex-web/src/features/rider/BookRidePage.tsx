@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { api } from '@/api/client'
 import { toFriendlyError } from '@/api/errors'
-import type { FareEstimate, RiderProfile, Ride, VehicleCategory } from '@/api/types'
+import type { CouponPreview, FareEstimate, RiderProfile, Ride, VehicleCategory } from '@/api/types'
 import { PageHeader } from '@/components/brand/PageHeader'
 import { RideMap, type MapMarker } from '@/components/map/RideMap'
 import { Alert } from '@/components/ui/alert'
@@ -15,6 +15,7 @@ import { TextField } from '@/components/ui/text-field'
 import { FareBreakdown } from '@/features/rides/FareBreakdown'
 import { cn } from '@/lib/cn'
 import { formatINR } from '@/lib/format'
+import { couponReason } from '@/lib/complaints'
 import { CATEGORY_LABEL, formatDistance, formatDuration } from '@/lib/rides'
 
 interface Spot {
@@ -23,7 +24,16 @@ interface Spot {
   longitude: number
 }
 
-type Target = 'pickup' | 'dropoff'
+type Target = 'pickup' | 'dropoff' | 'stop'
+
+const MAX_STOPS = 3
+
+/** The value for a datetime-local input: local time, minutes precision, N minutes from now. */
+function localInput(minutesFromNow: number): string {
+  const d = new Date(Date.now() + minutesFromNow * 60_000)
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset())
+  return d.toISOString().slice(0, 16)
+}
 
 const ICON: Record<VehicleCategory, typeof Car> = { BIKE: Bike, AUTO: CarTaxiFront, CAB: Car }
 
@@ -41,6 +51,11 @@ export function BookRidePage() {
   const [error, setError] = useState<string | null>(null)
   const [quoting, setQuoting] = useState(false)
   const [requesting, setRequesting] = useState(false)
+  const [stops, setStops] = useState<Spot[]>([])
+  const [coupon, setCoupon] = useState('')
+  const [couponInfo, setCouponInfo] = useState<CouponPreview | null>(null)
+  const [later, setLater] = useState(false)
+  const [when, setWhen] = useState(() => localInput(60))
 
   // A rider with a ride in progress goes straight to it (the server allows only one at a time)
   useEffect(() => {
@@ -70,6 +85,7 @@ export function BookRidePage() {
       .post<FareEstimate[]>('/api/fares/estimate', {
         pickup: { latitude: pickup.latitude, longitude: pickup.longitude },
         dropoff: { latitude: dropoff.latitude, longitude: dropoff.longitude },
+        stops: stops.map((s) => ({ latitude: s.latitude, longitude: s.longitude })),
       })
       .then((response) => {
         if (cancelled) return
@@ -85,7 +101,7 @@ export function BookRidePage() {
     return () => {
       cancelled = true
     }
-  }, [pickup, dropoff])
+  }, [pickup, dropoff, stops])
 
   function setSpot(which: Target, spot: Spot | null) {
     if (which === 'pickup') setPickup(spot)
@@ -96,6 +112,11 @@ export function BookRidePage() {
   function onMapPick(point: { latitude: number; longitude: number }) {
     const latitude = round6(point.latitude)
     const longitude = round6(point.longitude)
+    if (target === 'stop') {
+      if (stops.length < MAX_STOPS) setStops([...stops, { address: `Stop ${stops.length + 1} (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`, latitude, longitude }])
+      setTarget('dropoff')
+      return
+    }
     setSpot(target, { address: `Pinned location (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`, latitude, longitude })
     if (target === 'pickup' && !dropoff) setTarget('dropoff')
   }
@@ -123,6 +144,20 @@ export function BookRidePage() {
     setSpot(which, { address: place.address, latitude: place.latitude, longitude: place.longitude })
   }
 
+  async function checkCoupon() {
+    if (!chosen || !coupon.trim()) {
+      setCouponInfo(null)
+      return
+    }
+    try {
+      const { data } = await api.get<CouponPreview>(`/api/coupons/${encodeURIComponent(coupon.trim())}/preview?fare=${chosen.total}`)
+      setCouponInfo(data)
+    } catch (err) {
+      setCouponInfo(null)
+      setError(toFriendlyError(err).message)
+    }
+  }
+
   async function request() {
     if (!pickup || !dropoff) return
     setRequesting(true)
@@ -132,6 +167,9 @@ export function BookRidePage() {
         category,
         pickup: { address: pickup.address, location: { latitude: pickup.latitude, longitude: pickup.longitude } },
         dropoff: { address: dropoff.address, location: { latitude: dropoff.latitude, longitude: dropoff.longitude } },
+        couponCode: coupon.trim() || undefined,
+        scheduledFor: later ? new Date(when).toISOString() : undefined,
+        stops: stops.length ? stops.map((s) => ({ address: s.address, location: { latitude: s.latitude, longitude: s.longitude } })) : undefined,
       })
       void navigate(`/rides/${data.id}`)
     } catch (err) {
@@ -207,6 +245,26 @@ export function BookRidePage() {
             )
           })}
 
+          {pickup && dropoff && (
+            <Card>
+              <CardContent className="flex flex-col gap-2">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-semibold text-fg">Stops ({stops.length}/{MAX_STOPS})</p>
+                  <Button variant={target === 'stop' ? 'primary' : 'secondary'} size="sm" disabled={stops.length >= MAX_STOPS} onClick={() => setTarget('stop')}>
+                    {target === 'stop' ? 'Tap the map' : 'Add a stop'}
+                  </Button>
+                </div>
+                {stops.map((s, i) => (
+                  <div key={i} className="flex items-center justify-between gap-2 text-sm text-fg-secondary">
+                    <span>{s.address}</span>
+                    <Button variant="ghost" size="sm" onClick={() => setStops(stops.filter((_, j) => j !== i))}>Remove</Button>
+                  </div>
+                ))}
+                <p className="text-xs text-fg-muted">Each stop adds distance and about 3 minutes of waiting to the fare.</p>
+              </CardContent>
+            </Card>
+          )}
+
           {error && <Alert kind="error">{error}</Alert>}
 
           {pickup && dropoff && (
@@ -245,10 +303,26 @@ export function BookRidePage() {
                   </div>
                 )}
                 {chosen && <FareBreakdown fare={chosen} minimumFareApplied={chosen.minimumFareApplied} />}
+                {chosen && chosen.surgeMultiplier > 1 && !later && (
+                  <Alert kind="info">Busy right now: fares are {chosen.surgeMultiplier.toFixed(2)}x. Schedule for later to avoid surge pricing.</Alert>
+                )}
+                <div className="flex gap-2">
+                  <TextField label="Offer code" className="uppercase" value={coupon} maxLength={40} onChange={(e) => { setCoupon(e.target.value); setCouponInfo(null) }} />
+                  <Button variant="secondary" size="sm" className="mt-7" disabled={!chosen || !coupon.trim()} onClick={checkCoupon}>Apply</Button>
+                </div>
+                {couponInfo && (couponInfo.eligible
+                  ? <Alert kind="success">You save {formatINR(couponInfo.discount)} on this ride.</Alert>
+                  : <Alert kind="error">{couponReason(couponInfo.reason)}</Alert>)}
+                <label className="flex items-center gap-2 text-sm text-fg">
+                  <input type="checkbox" checked={later} onChange={(e) => setLater(e.target.checked)} /> Schedule for later
+                </label>
+                {later && (
+                  <TextField label="Pickup time" type="datetime-local" min={localInput(15)} max={localInput(7 * 24 * 60)} value={when} onChange={(e) => setWhen(e.target.value)} hint="Between 15 minutes and 7 days from now" />
+                )}
                 <Button size="lg" disabled={!chosen} loading={requesting} onClick={request}>
-                  {chosen ? `Request ${CATEGORY_LABEL[category]} · ${formatINR(chosen.total)}` : 'Request ride'}
+                  {chosen ? `${later ? 'Schedule' : 'Request'} ${CATEGORY_LABEL[category]} · ${formatINR(chosen.total)}` : 'Request ride'}
                 </Button>
-                <p className="text-xs text-fg-muted">Your test card is charged automatically when the trip ends. No real money moves.</p>
+                <p className="text-xs text-fg-muted">Your wallet is used first, then your test card, when the trip ends. No real money moves.</p>
               </CardContent>
             </Card>
           )}

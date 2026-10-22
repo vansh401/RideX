@@ -12,10 +12,11 @@ import jakarta.validation.constraints.NotNull;
 @RestController
 public class FareController {
 
-    public record FareEstimateRequest(@NotNull @Valid LatLng pickup, @NotNull @Valid LatLng dropoff) {
+    public record FareEstimateRequest(@NotNull @Valid LatLng pickup, @NotNull @Valid LatLng dropoff, @Valid List<LatLng> stops) {
     }
 
-    public record QuoteRequest(@NotNull @Valid LatLng pickup, @NotNull @Valid LatLng dropoff, @NotNull VehicleCategory category) {
+    public record QuoteRequest(@NotNull @Valid LatLng pickup, @NotNull @Valid LatLng dropoff, @NotNull VehicleCategory category,
+                        @Valid List<LatLng> stops, Boolean ignoreSurge) {
     }
 
     private final PricingService pricingService;
@@ -27,12 +28,12 @@ public class FareController {
     /** For riders (called by the browser): a quote for every vehicle category so they can compare. */
     @PostMapping("/api/fares/estimate")
     public List<FareEstimate> estimate(@Valid @RequestBody FareEstimateRequest request) {
-        return pricingService.estimateAll(request.pickup(), request.dropoff());
+        return pricingService.estimateAll(request.pickup(), request.dropoff(), request.stops());
     }
 
     /** For other services (called by the core when a ride is requested): one exact quote. Protected by the service token. */
     @PostMapping("/internal/quotes")
     public FareEstimate quote(@Valid @RequestBody QuoteRequest request) {
-        return pricingService.estimate(request.pickup(), request.dropoff(), request.category());
+        return pricingService.estimate(request.pickup(), request.dropoff(), request.category(), request.stops(), Boolean.TRUE.equals(request.ignoreSurge()));
     }
 }

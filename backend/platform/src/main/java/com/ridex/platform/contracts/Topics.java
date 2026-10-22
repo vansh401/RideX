@@ -18,6 +18,9 @@ public final class Topics {
     /** Driver application decisions. Key = driver user id. Published by the core. */
     public static final String DRIVER_EVENTS = "driver-events";
 
+    /** Complaints filed and resolved. Key = ride id. Published by the core; the payment service refunds, notification informs. */
+    public static final String COMPLAINT_EVENTS = "complaint-events";
+
     /** Messages that failed for good land in "<topic>.DLT" (dead-letter topic). */
     public static String deadLetterOf(String topic) {
         return topic + ".DLT";

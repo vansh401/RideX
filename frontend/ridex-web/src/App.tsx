@@ -42,6 +42,12 @@ const NotificationsPage = lazy(() =>
 const AdminPaymentsPage = lazy(() =>
   import('@/features/admin/AdminPaymentsPage').then((m) => ({ default: m.AdminPaymentsPage })),
 )
+const WalletPage = lazy(() => import('@/features/rider/WalletPage').then((m) => ({ default: m.WalletPage })))
+const EarningsPage = lazy(() => import('@/features/driver/EarningsPage').then((m) => ({ default: m.EarningsPage })))
+const AdminCouponsPage = lazy(() => import('@/features/admin/AdminCouponsPage').then((m) => ({ default: m.AdminCouponsPage })))
+const AdminComplaintsPage = lazy(() => import('@/features/admin/AdminComplaintsPage').then((m) => ({ default: m.AdminComplaintsPage })))
+const AdminAnalyticsPage = lazy(() => import('@/features/admin/AdminAnalyticsPage').then((m) => ({ default: m.AdminAnalyticsPage })))
+const AdminFraudPage = lazy(() => import('@/features/admin/AdminFraudPage').then((m) => ({ default: m.AdminFraudPage })))
 const AdminEventsPage = lazy(() => import('@/features/admin/AdminEventsPage').then((m) => ({ default: m.AdminEventsPage })))
 const ForbiddenPage = lazy(() => import('@/features/app/StatusPages').then((m) => ({ default: m.ForbiddenPage })))
 
@@ -81,12 +87,14 @@ function App() {
             <Route element={<ProtectedRoute roles={['RIDER']} />}>
               <Route path="/rider" element={<RiderHome />} />
               <Route path="/rider/book" element={<BookRidePage />} />
+              <Route path="/rider/wallet" element={<WalletPage />} />
               <Route path="/rider/rides" element={<RideHistoryPage eyebrow="Rider" title="My rides" />} />
             </Route>
             <Route element={<ProtectedRoute roles={['DRIVER']} />}>
               <Route path="/driver" element={<DriverDashboard />} />
               <Route path="/driver/documents" element={<DocumentsPage />} />
               <Route path="/driver/vehicles" element={<VehiclesPage />} />
+              <Route path="/driver/earnings" element={<EarningsPage />} />
               <Route path="/driver/history" element={<RideHistoryPage eyebrow="Driver" title="Ride history" />} />
             </Route>
             <Route element={<ProtectedRoute roles={['ADMIN']} />}>
@@ -95,6 +103,10 @@ function App() {
               <Route path="/admin/drivers/:driverId" element={<AdminDriverDetailPage />} />
               <Route path="/admin/users" element={<AdminUsersPage />} />
               <Route path="/admin/payments" element={<AdminPaymentsPage />} />
+              <Route path="/admin/coupons" element={<AdminCouponsPage />} />
+              <Route path="/admin/complaints" element={<AdminComplaintsPage />} />
+              <Route path="/admin/reports" element={<AdminAnalyticsPage />} />
+              <Route path="/admin/fraud" element={<AdminFraudPage />} />
               <Route path="/admin/events" element={<AdminEventsPage />} />
               <Route path="/admin/vehicles" element={<AdminVehiclesPage />} />
               <Route path="/admin/rides" element={<RideHistoryPage path="/api/admin/rides" eyebrow="Admin" title="All rides" />} />

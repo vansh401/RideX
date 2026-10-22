@@ -100,4 +100,39 @@ public final class EventTestSupport {
                 + "\",\"key\":\"" + driverUserId + "\",\"data\":{\"driverUserId\":\"" + driverUserId + "\",\"decision\":\"" + decision
                 + "\",\"reason\":" + (reason == null ? "null" : "\"" + reason + "\"") + "}}";
     }
+
+    /** A completed ride whose rider asked for a coupon (Phase 14: an optional field of the same event). */
+    public static String rideEventWithCoupon(UUID eventId, UUID rideId, UUID riderId, UUID driverId, String from, String to, String actor, BigDecimal fare,
+                                             String couponCode) {
+        String json = rideEvent(eventId, rideId, riderId, driverId, from, to, actor, fare);
+        return json.substring(0, json.length() - 2) + ",\"couponCode\":\"" + couponCode + "\"}}";
+    }
+
+    /** complaint.filed / complaint.resolved */
+    public static String complaintEvent(UUID eventId, String type, UUID complaintId, UUID rideId, UUID userId, String category, String status,
+                                        BigDecimal refundAmount) {
+        return "{\"eventId\":\"" + eventId + "\",\"type\":\"" + type + "\",\"version\":1,\"occurredAt\":\"" + Instant.now()
+                + "\",\"key\":\"" + rideId + "\",\"data\":{\"complaintId\":\"" + complaintId + "\",\"rideId\":\"" + rideId + "\",\"userId\":\"" + userId
+                + "\",\"category\":\"" + category + "\",\"status\":\"" + status + "\",\"refundAmount\":" + (refundAmount == null ? "null" : refundAmount.toPlainString())
+                + ",\"resolutionNote\":\"checked\"}}";
+    }
+
+    /** A ride event with every Phase 14 field and a chosen time (both the event time and the time of the change). */
+    public static String rideEventAt(UUID eventId, UUID rideId, UUID riderId, UUID driverId, String from, String to, String actor, BigDecimal fare,
+                                     String category, String cell, java.time.Instant at) {
+        return "{\"eventId\":\"" + eventId + "\",\"type\":\"ride.status-changed\",\"version\":1,\"occurredAt\":\"" + at + "\",\"key\":\"" + rideId
+                + "\",\"data\":{\"rideId\":\"" + rideId + "\",\"riderUserId\":\"" + riderId + "\",\"driverUserId\":" + (driverId == null ? "null" : "\"" + driverId + "\"")
+                + ",\"from\":\"" + from + "\",\"to\":\"" + to + "\",\"actor\":\"" + actor + "\",\"note\":null,\"at\":\"" + at + "\",\"pickupAddress\":\"A\",\"dropoffAddress\":\"B\","
+                + "\"fareTotal\":" + (fare == null ? "null" : fare.toPlainString()) + ",\"currency\":\"INR\",\"category\":\"" + category + "\",\"pickupCell\":\"" + cell
+                + "\",\"surgeMultiplier\":1.50,\"couponCode\":null}}";
+    }
+
+    /** payment.succeeded, payment.failed or payment.refunded with the Phase 14 fields. */
+    public static String paymentEventFull(UUID eventId, String type, UUID rideId, UUID riderId, UUID driverId, BigDecimal amount, BigDecimal discount, String method,
+                                          BigDecimal refund, java.time.Instant at) {
+        return "{\"eventId\":\"" + eventId + "\",\"type\":\"" + type + "\",\"version\":1,\"occurredAt\":\"" + at + "\",\"key\":\"" + rideId + "\",\"data\":{\"paymentId\":\""
+                + UUID.randomUUID() + "\",\"rideId\":\"" + rideId + "\",\"riderUserId\":\"" + riderId + "\",\"driverUserId\":\"" + driverId + "\",\"amount\":" + amount.toPlainString()
+                + ",\"currency\":\"INR\",\"status\":\"" + ("payment.failed".equals(type) ? "FAILED" : "SUCCEEDED") + "\",\"failureReason\":null,\"attempts\":1,\"gatewayReference\":\"ref\","
+                + "\"discount\":" + discount.toPlainString() + ",\"method\":\"" + method + "\",\"refundAmount\":" + (refund == null ? "null" : refund.toPlainString()) + "}}";
+    }
 }

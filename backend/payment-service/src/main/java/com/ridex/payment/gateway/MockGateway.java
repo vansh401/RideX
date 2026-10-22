@@ -95,6 +95,39 @@ public class MockGateway {
         return ResponseEntity.ok(response);
     }
 
+    record RefundBody(String chargeReference, BigDecimal amount, String currency) {
+    }
+
+    /** Give money back. Same rules as a charge: one row per Idempotency-Key, so asking twice refunds once; and it can misbehave on demand. */
+    @PostMapping("/refunds")
+    public ResponseEntity<ChargeResponse> refund(@RequestHeader("Idempotency-Key") String idempotencyKey, @RequestBody RefundBody body)
+            throws InterruptedException {
+        calls.incrementAndGet();
+        Chaos behaviour = chaos.get();
+        switch (behaviour.mode()) {
+            case ERROR -> {
+                return ResponseEntity.status(500).build();
+            }
+            case SLOW -> Thread.sleep(behaviour.delayMs());
+            default -> {
+                // NORMAL and SLOW_AFTER_PROCESSING do the work first
+            }
+        }
+        List<String> earlier = jdbc.queryForList("select reference from mock_gateway_refunds where idempotency_key = ?", String.class, idempotencyKey);
+        String reference = earlier.isEmpty() ? "mock_rf_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16) : earlier.get(0);
+        if (earlier.isEmpty()) {
+            jdbc.update("""
+                    insert into mock_gateway_refunds (idempotency_key, charge_reference, amount, reference) values (?, ?, ?, ?)
+                    on conflict (idempotency_key) do nothing
+                    """, idempotencyKey, body.chargeReference(), body.amount(), reference);
+            reference = jdbc.queryForObject("select reference from mock_gateway_refunds where idempotency_key = ?", String.class, idempotencyKey);
+        }
+        if (behaviour.mode() == ChaosMode.SLOW_AFTER_PROCESSING) {
+            Thread.sleep(behaviour.delayMs());
+        }
+        return ResponseEntity.ok(new ChargeResponse(true, reference, null));
+    }
+
     private ChargeResponse process(String key, ChargeBody body) {
         // 1. Already seen this key? Return what we said last time. Do not charge again.
         List<ChargeResponse> earlier = jdbc.query(

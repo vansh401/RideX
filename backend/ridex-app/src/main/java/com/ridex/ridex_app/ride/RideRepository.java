@@ -88,4 +88,16 @@ public interface RideRepository extends JpaRepository<Ride, UUID> {
     BigDecimal sumTotalFareByStatus(@Param("status") RideStatus status);
 
     long countByRequestedAtAfter(Instant since);
+
+    // ----- Phase 14: booking ahead and surge -----
+
+    long countByRiderIdAndStatus(UUID riderId, RideStatus status);
+
+    /** Booked rides whose time is near: the scheduler turns them into a search for a driver. */
+    @Query("select r.id from Ride r where r.status = com.ridex.ridex_app.ride.RideStatus.SCHEDULED and r.scheduledFor <= :until order by r.scheduledFor")
+    List<UUID> findScheduledDueIds(@Param("until") Instant until);
+
+    /** Demand, per zone: how many ordinary rides were requested since a moment. */
+    @Query("select r.pickupCell, count(r) from Ride r where r.pickupCell is not null and r.scheduledFor is null and r.requestedAt >= :since group by r.pickupCell")
+    List<Object[]> countRecentRequestsByCell(@Param("since") Instant since);
 }

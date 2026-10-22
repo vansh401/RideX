@@ -6,7 +6,7 @@ distributed systems and DevOps.
 ## Stack
 Java 21 · Spring Boot 4 · PostgreSQL · Redis · Kafka · Flyway · Resilience4j · React + TypeScript · Docker + nginx + Kubernetes (kind, kustomize, HPA) · Micrometer, Prometheus, Grafana, OpenTelemetry, Jaeger · GitHub Actions
 
-## Architecture (after Phase 13)
+## Architecture (after Phase 14)
 
 One API gateway in front of a core application plus four extracted services, and a shared infrastructure library. Each service has its own database. Everything can run in Docker.
 
@@ -14,14 +14,33 @@ One API gateway in front of a core application plus four extracted services, and
 |---|---|---|
 | **web** (nginx, `frontend/ridex-web`) | 3000 (Docker) | serves the React app, forwards `/api` and `/ws` to the gateway |
 | **api-gateway** (`backend/api-gateway`) | 8000 | the only address the browser uses: routing, token check, rate limit, CORS, logging |
-| core (`backend/ridex-app`) | 8080 | auth, users, rides, drivers, matching, ratings, WebSockets; issues tokens |
+| core (`backend/ridex-app`) | 8080 | auth, users, rides (scheduled, with stops), drivers, matching, surge measurement, complaints, ratings, WebSockets; issues tokens |
 | notification-service | 8081 | turns events into stored and live notifications |
-| payment-service | 8082 | charges riders through a protected payment gateway |
+| payment-service | 8082 | wallet and double-entry ledger, coupons, refunds, driver earnings and incentives, card payments through a protected gateway |
 | pricing-service | 8083 | the fare formula (stateless) |
-| analytics-service | 8084 | audit log, daily counts, dead letters, consumer lag |
+| analytics-service | 8084 | audit log, dead letters, consumer lag, admin report facts and charts, fraud signals |
 | platform (library) | | event contracts, outbox, idempotent consumers, JWT validation |
 
-Read: [service map](docs/service-map.md) · [microservices concepts](docs/microservices-concepts.md) · [gateway concepts](docs/gateway-concepts.md) · [docker concepts](docs/docker-concepts.md) · [phase 7 review](docs/phase-7-review.md) · [phase 8 review](docs/phase-8-review.md) · [phase 9 review](docs/phase-9-review.md) · [kubernetes concepts](docs/kubernetes-concepts.md) · [phase 10 review](docs/phase-10-review.md) · [event contracts](docs/event-contracts.md)
+Read: [service map](docs/service-map.md) · [microservices concepts](docs/microservices-concepts.md) · [gateway concepts](docs/gateway-concepts.md) · [docker concepts](docs/docker-concepts.md) · [phase 7 review](docs/phase-7-review.md) · [phase 8 review](docs/phase-8-review.md) · [phase 9 review](docs/phase-9-review.md) · [kubernetes concepts](docs/kubernetes-concepts.md) · [phase 10 review](docs/phase-10-review.md) · [event contracts](docs/event-contracts.md) · [money and ledger](docs/money-and-ledger-concepts.md) · [platform features](docs/platform-features-concepts.md) · [phase 14 review](docs/phase-14-review.md)
+
+```mermaid
+flowchart LR
+  Web[React app] --> GW[API gateway]
+  GW --> Core[core: rides, surge, complaints]
+  GW --> Pay[payment: wallet, ledger, coupons, refunds]
+  GW --> Price[pricing]
+  GW --> Ana[analytics: facts, charts, fraud]
+  Core -- outbox --> K[(Kafka)]
+  Pay -- outbox --> K
+  K --> Pay
+  K --> Notif[notification]
+  K --> Ana
+  Core -- surge cells --> R[(Redis)]
+  Price -- reads surge --> R
+  Pay -- earnings cache --> R
+```
+
+More: [deployment guide](docs/deployment-guide.md) · [interview walkthrough](docs/interview-walkthrough.md)
 
 ## Run it (Windows, PowerShell)
 
@@ -105,4 +124,4 @@ cd backend
 ```
 
 ## Status
-Phases 1 to 13 done: foundation, auth, rides and matching, Redis, WebSockets, Kafka and events, microservices, API gateway, Docker, Kubernetes, scaling and failure experiments, observability, CI/CD.
+Phases 1 to 14 done: foundation, auth, rides and matching, Redis, WebSockets, Kafka and events, microservices, API gateway, Docker, Kubernetes, scaling and failure experiments, observability, CI/CD, and the product features (surge pricing, wallet and ledger, coupons, refunds, driver earnings and incentives, admin reports, complaints, scheduled rides and stops, fraud signals).

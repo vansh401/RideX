@@ -15,7 +15,10 @@
     "status": { "enum": ["SUCCEEDED", "FAILED", "PENDING"] },
     "failureReason": { "type": ["string", "null"] },
     "attempts": { "type": "integer", "minimum": 1 },
-    "gatewayReference": { "type": ["string", "null"] }
+    "gatewayReference": { "type": ["string", "null"] },
+    "discount": { "type": ["number", "null"], "description": "What a coupon took off the fare (Phase 14, optional)." },
+    "method": { "type": ["string", "null"], "description": "WALLET or GATEWAY (Phase 14, optional)." },
+    "refundAmount": { "type": ["number", "null"], "description": "On payment.refunded: how much was given back (Phase 14, optional)." }
   },
   "additionalProperties": true
 }

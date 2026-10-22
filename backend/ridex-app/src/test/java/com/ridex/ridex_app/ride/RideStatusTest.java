@@ -9,6 +9,7 @@ import static com.ridex.ridex_app.ride.RideStatus.REQUESTED;
 import static com.ridex.ridex_app.ride.RideStatus.RIDE_COMPLETED;
 import static com.ridex.ridex_app.ride.RideStatus.RIDE_STARTED;
 import static com.ridex.ridex_app.ride.RideStatus.SEARCHING_DRIVER;
+import static com.ridex.ridex_app.ride.RideStatus.SCHEDULED;
 
 import java.util.EnumSet;
 import java.util.Map;
@@ -17,13 +18,14 @@ import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 /**
- * The state machine, checked EXHAUSTIVELY: all 8 x 8 = 64 possible moves are listed in one table
+ * The state machine, checked EXHAUSTIVELY: all 9 x 9 = 81 possible moves are listed in one table
  * below, and every single one is verified. If someone edits the rules, this test shows exactly
  * which move changed.
  */
 class RideStatusTest {
 
     private static final Map<RideStatus, Set<RideStatus>> EXPECTED = Map.of(
+            SCHEDULED, EnumSet.of(SEARCHING_DRIVER, CANCELLED),
             REQUESTED, EnumSet.of(SEARCHING_DRIVER, CANCELLED),
             SEARCHING_DRIVER, EnumSet.of(DRIVER_ASSIGNED, CANCELLED),
             DRIVER_ASSIGNED, EnumSet.of(DRIVER_ACCEPTED, SEARCHING_DRIVER, CANCELLED),

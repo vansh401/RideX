@@ -75,8 +75,8 @@ public class RideMetrics {
     public void onRideStatusChanged(RideStatusChanged e) {
         try (LogContext.Scope ignored = LogContext.ride(e.rideId())) {
             registry.counter("ridex.ride.status.changes", "status", e.to().name()).increment();
-            if (e.from() == null) {
-                requested.increment();
+            if (e.to() == RideStatus.SEARCHING_DRIVER && (e.from() == RideStatus.REQUESTED || e.from() == RideStatus.SCHEDULED)) {
+                requested.increment();   // the first time a ride starts looking for a driver (a ride is never "new" in an event: its first line is history only)
             }
             // The business story of a ride, one line per step. Ids only: no names, addresses or fares.
             log.info("Ride status changed: {} -> {}", e.from() == null ? "(new)" : e.from(), e.to());

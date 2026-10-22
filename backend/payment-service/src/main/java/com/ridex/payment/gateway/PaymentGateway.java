@@ -23,4 +23,13 @@ public interface PaymentGateway {
     }
 
     ChargeResult charge(ChargeRequest request) throws GatewayUnavailableException;
+
+    /** Give money back for an earlier charge (identified by the reference the gateway returned). Same idempotency rule as a charge. */
+    record RefundRequest(String idempotencyKey, String chargeReference, BigDecimal amount, String currency) {
+    }
+
+    record RefundResult(boolean success, String reference, String failureReason) {
+    }
+
+    RefundResult refund(RefundRequest request) throws GatewayUnavailableException;
 }

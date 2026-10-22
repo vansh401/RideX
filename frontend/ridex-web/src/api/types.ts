@@ -128,6 +128,7 @@ export interface FareEstimate {
 }
 
 export type RideStatus =
+  | 'SCHEDULED'
   | 'REQUESTED'
   | 'SEARCHING_DRIVER'
   | 'DRIVER_ASSIGNED'
@@ -176,6 +177,10 @@ export interface Ride {
   cancelledBy: ActorRole | null
   cancelReason: string | null
   myRating: number | null
+  scheduledFor?: string | null
+  couponCode?: string | null
+  stops?: RideStop[]
+  stopsDone?: number
 }
 
 export interface TimelineEntry {
@@ -359,4 +364,128 @@ export interface GatewayStatus {
   bulkheadMaxCalls: number
   chaos: { mode: 'NORMAL' | 'ERROR' | 'SLOW' | 'SLOW_AFTER_PROCESSING'; delayMs: number }
   callsReceivedByGateway: number
+}
+
+// ---- Phase 14 ----
+
+export interface RideStop {
+  position: number
+  address: string
+  latitude: number
+  longitude: number
+  arrivedAt: string | null
+}
+
+export interface Wallet {
+  balance: number
+  currency: string
+}
+
+export interface WalletEntry {
+  id: number
+  type: string
+  amount: number
+  balanceAfter: number
+  description: string
+  reference: string | null
+  at: string
+}
+
+export interface CouponPreview {
+  eligible: boolean
+  reason: 'OK' | 'UNKNOWN' | 'INACTIVE' | 'NOT_STARTED' | 'EXPIRED' | 'FARE_TOO_LOW' | 'SOLD_OUT' | 'ALREADY_USED'
+  discount: number
+  code: string
+}
+
+export interface Coupon {
+  id: string
+  code: string
+  description: string | null
+  discountType: 'PERCENT' | 'FLAT'
+  value: number
+  maxDiscount: number | null
+  minFare: number | null
+  validFrom: string
+  validUntil: string
+  maxTotalUses: number | null
+  perUserLimit: number
+  usedCount: number
+  active: boolean
+}
+
+export interface EarningsSummary {
+  currency: string
+  balance: number
+  today: number
+  tripsToday: number
+  last7Days: number
+  trips7Days: number
+  last30Days: number
+  trips30Days: number
+  bonuses30Days: number
+  daily: { day: string; amount: number; trips: number }[]
+  recent: { rideId: string; amount: number; at: string }[]
+  generatedAt: string
+}
+
+export type ComplaintCategory =
+  | 'OVERCHARGED'
+  | 'RUDE_BEHAVIOUR'
+  | 'UNSAFE_DRIVING'
+  | 'ROUTE_ISSUE'
+  | 'VEHICLE_ISSUE'
+  | 'PAYMENT_ISSUE'
+  | 'LOST_ITEM'
+  | 'OTHER'
+
+export type ComplaintStatus = 'OPEN' | 'IN_REVIEW' | 'RESOLVED' | 'REJECTED'
+
+export interface Complaint {
+  id: string
+  rideId: string
+  category: ComplaintCategory
+  description: string
+  status: ComplaintStatus
+  filedByRole: string
+  filedByName: string | null
+  assignedTo: string | null
+  resolutionNote: string | null
+  refundAmount: number | null
+  createdAt: string
+  updatedAt: string
+  resolvedAt: string | null
+  comments: { id: string; authorRole: string; message: string; internal: boolean; createdAt: string }[]
+  ride: { pickup: string; dropoff: string; fare: number; status: string } | null
+}
+
+export interface AnalyticsOverview {
+  days: number
+  ridesRequested: number
+  ridesCompleted: number
+  ridesCancelled: number
+  cancellationRate: number
+  grossBookings: number
+  averageFare: number
+  averageSecondsToAccept: number | null
+  ridesWithSurge: number
+  collected: number
+  couponDiscounts: number
+  refunds: number
+  paymentsSucceeded: number
+  paymentsFailed: number
+  complaints: number
+}
+
+export interface FraudSignal {
+  id: number
+  rule: string
+  subjectType: string
+  subjectId: string
+  severity: number
+  details: string
+  rideId: string | null
+  status: 'NEW' | 'CONFIRMED' | 'DISMISSED'
+  createdAt: string
+  reviewedAt: string | null
 }

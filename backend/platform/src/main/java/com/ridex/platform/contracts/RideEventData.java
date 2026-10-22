@@ -17,6 +17,11 @@ public record RideEventData(
         String pickupAddress,
         String dropoffAddress,
         BigDecimal fareTotal,
-        String currency
+        String currency,
+        /** Added in Phase 14, all optional (older events and older consumers are unaffected): */
+        String category,
+        String pickupCell,
+        BigDecimal surgeMultiplier,
+        String couponCode
 ) {
 }

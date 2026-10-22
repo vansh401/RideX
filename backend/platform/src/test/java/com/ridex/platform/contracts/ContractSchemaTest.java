@@ -44,12 +44,12 @@ class ContractSchemaTest {
 
     private RideEventData ride() {
         return new RideEventData(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), "RIDE_STARTED", "RIDE_COMPLETED", "DRIVER",
-                null, Instant.now(), "12 Lake Road", "90 Hill Street", new BigDecimal("252.00"), "INR");
+                null, Instant.now(), "12 Lake Road", "90 Hill Street", new BigDecimal("252.00"), "INR", null, null, null, null);
     }
 
     private PaymentEventData payment(String status, String failure) {
         return new PaymentEventData(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), new BigDecimal("252.00"),
-                "INR", status, failure, 1, "mock_ch_1");
+                "INR", status, failure, 1, "mock_ch_1", null, null, null);
     }
 
     private String json(String type, String key, Object data) {
@@ -73,7 +73,7 @@ class ContractSchemaTest {
     @Test
     void aRideEventWithoutADriverYetIsStillValid() throws IOException {
         RideEventData noDriver = new RideEventData(UUID.randomUUID(), UUID.randomUUID(), null, "SEARCHING_DRIVER", "CANCELLED", "SYSTEM",
-                "no driver found", Instant.now(), "A", "B", null, null);
+                "no driver found", Instant.now(), "A", "B", null, null, null, null, null, null);
 
         JsonNode event = mapper.readTree(json(EventEnvelope.RIDE_STATUS_CHANGED, "ride-1", noDriver));
 

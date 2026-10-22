@@ -44,7 +44,7 @@ public class HttpPricingClient implements PricingClient {
     private static final Logger log = LoggerFactory.getLogger(HttpPricingClient.class);
     private static final String UNAVAILABLE = "Pricing is temporarily unavailable. Please try again in a moment";
 
-    record QuoteRequest(LatLng pickup, LatLng dropoff, VehicleCategory category) {
+    record QuoteRequest(LatLng pickup, LatLng dropoff, VehicleCategory category, java.util.List<LatLng> stops, Boolean ignoreSurge) {
     }
 
     private final RestClient client;
@@ -85,7 +85,12 @@ public class HttpPricingClient implements PricingClient {
 
     @Override
     public FareQuote quote(LatLng pickup, LatLng dropoff, VehicleCategory category) {
-        Supplier<FareQuote> call = () -> call(pickup, dropoff, category);
+        return quote(pickup, dropoff, category, null, false);
+    }
+
+    @Override
+    public FareQuote quote(LatLng pickup, LatLng dropoff, VehicleCategory category, java.util.List<LatLng> stops, boolean ignoreSurge) {
+        Supplier<FareQuote> call = () -> call(pickup, dropoff, category, stops, ignoreSurge);
         call = CircuitBreaker.decorateSupplier(circuitBreaker, call);
         call = Retry.decorateSupplier(retry, call);
         try {
@@ -103,12 +108,12 @@ public class HttpPricingClient implements PricingClient {
         return circuitBreaker;
     }
 
-    private FareQuote call(LatLng pickup, LatLng dropoff, VehicleCategory category) {
+    private FareQuote call(LatLng pickup, LatLng dropoff, VehicleCategory category, java.util.List<LatLng> stops, boolean ignoreSurge) {
         try {
             FareQuote quote = client.post()
                     .uri("/internal/quotes")
                     .header("X-Service-Token", serviceToken == null ? "" : serviceToken)
-                    .body(new QuoteRequest(pickup, dropoff, category))
+                    .body(new QuoteRequest(pickup, dropoff, category, stops == null || stops.isEmpty() ? null : stops, ignoreSurge ? Boolean.TRUE : null))
                     .retrieve()
                     .body(FareQuote.class);
             if (quote == null) {

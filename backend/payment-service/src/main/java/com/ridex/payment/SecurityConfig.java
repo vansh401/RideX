@@ -25,6 +25,9 @@ public class SecurityConfig {
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.POST, "/api/payments/rides/*/retry").hasRole("RIDER")
                 .requestMatchers(HttpMethod.GET, "/api/payments/rides/*").hasAnyRole("RIDER", "DRIVER", "ADMIN")
+                // Phase 14: the rider's wallet and coupons, the driver's earnings (the id always comes from the token)
+                .requestMatchers("/api/wallet", "/api/wallet/**", "/api/coupons/*/preview").hasRole("RIDER")
+                .requestMatchers(HttpMethod.GET, "/api/driver/earnings").hasRole("DRIVER")
                 .anyRequest().denyAll());
         return http.build();
     }

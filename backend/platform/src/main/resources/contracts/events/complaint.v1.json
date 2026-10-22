@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ridex/events/complaint.v1",
+  "title": "complaint.filed / complaint.resolved (version 1) - the data part",
+  "description": "Published by the core on topic complaint-events, key = ride id. Consumers: payment (refunds on complaint.resolved), notification, analytics, audit.",
+  "type": "object",
+  "required": ["complaintId", "rideId", "userId", "category", "status"],
+  "properties": {
+    "complaintId": { "type": "string", "format": "uuid" },
+    "rideId": { "type": "string", "format": "uuid" },
+    "userId": { "type": "string", "format": "uuid", "description": "The person who complained (the one a refund goes to)." },
+    "category": { "type": "string" },
+    "status": { "enum": ["OPEN", "IN_REVIEW", "RESOLVED", "REJECTED"] },
+    "refundAmount": { "type": ["number", "null"], "minimum": 0, "description": "On complaint.resolved: money to give back, if any." },
+    "resolutionNote": { "type": ["string", "null"] }
+  },
+  "additionalProperties": true
+}

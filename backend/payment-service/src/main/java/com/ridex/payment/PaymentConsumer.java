@@ -41,6 +41,6 @@ public class PaymentConsumer {
             throw new PoisonEventException("A completed ride must name its driver and its fare");
         }
         processed.runOnce(GROUP, event.eventId(), () -> payments.chargeForCompletedRide(
-                ride.rideId(), ride.riderUserId(), ride.driverUserId(), ride.fareTotal(), ride.currency()));
+                ride.rideId(), ride.riderUserId(), ride.driverUserId(), ride.fareTotal(), ride.currency(), ride.couponCode()));
     }
 }

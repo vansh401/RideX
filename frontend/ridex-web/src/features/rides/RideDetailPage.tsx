@@ -30,6 +30,7 @@ import { FareBreakdown } from './FareBreakdown'
 import { RideProgress } from './RideProgress'
 import { PaymentCard } from './PaymentCard'
 import { RatingForm } from './RatingForm'
+import { ComplaintSection } from './ComplaintSection'
 import { RatingValue } from './StarRating'
 
 /** One ride, for whoever is looking at it. The server decides what each role may see and do. */
@@ -111,6 +112,19 @@ export function RideDetailPage() {
     }
   }
 
+  async function nextStop() {
+    setBusy(true)
+    try {
+      await api.post(`/api/rides/${rideId}/stops/next`)
+      toast.success('Stop reached')
+      await refresh()
+    } catch (err) {
+      toast.error(toFriendlyError(err).message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
   async function cancel(reason: string) {
     try {
       await api.post(`/api/rides/${rideId}/cancel`, reason ? { reason } : {})
@@ -153,12 +167,18 @@ export function RideDetailPage() {
 
       {error && <Alert kind="error" className="mb-4">{error}</Alert>}
 
-      {ride.status !== 'CANCELLED' && (
+      {ride.status !== 'CANCELLED' && ride.status !== 'SCHEDULED' && (
         <Card className="mb-6">
           <CardContent>
             <RideProgress status={ride.status} />
           </CardContent>
         </Card>
+      )}
+
+      {ride.status === 'SCHEDULED' && ride.scheduledFor && (
+        <Alert kind="info" className="mb-6">
+          Booked for {formatDateTime(ride.scheduledFor)}. We start looking for a driver shortly before that time, and you can cancel for free until then.
+        </Alert>
       )}
 
       {ride.status === 'CANCELLED' && (
@@ -187,6 +207,22 @@ export function RideDetailPage() {
               </p>
             </CardContent>
           </Card>
+
+          {ride.stops && ride.stops.length > 0 && (
+            <Card>
+              <CardContent>
+                <p className="mb-3 font-semibold text-fg">Stops on the way</p>
+                <ol className="flex flex-col gap-2 text-sm">
+                  {ride.stops.map((stop) => (
+                    <li key={stop.position} className="flex justify-between gap-2">
+                      <span className="text-fg">{stop.position}. {stop.address}</span>
+                      <span className="text-fg-muted">{stop.arrivedAt ? 'Reached' : 'Waiting'}</span>
+                    </li>
+                  ))}
+                </ol>
+              </CardContent>
+            </Card>
+          )}
 
           {timeline.length > 0 && (
             <Card>
@@ -238,7 +274,8 @@ export function RideDetailPage() {
             <CardContent>
               <p className="mb-3 font-semibold text-fg">Fare</p>
               <FareBreakdown fare={ride.fare} />
-              <p className="mt-3 text-xs text-fg-muted">Charged automatically when the trip ends.</p>
+              {ride.couponCode && <p className="mt-3 text-sm text-fg-secondary">Offer {ride.couponCode} is applied when the trip ends.</p>}
+              <p className="mt-3 text-xs text-fg-muted">Charged automatically when the trip ends (wallet first, then card).</p>
             </CardContent>
           </Card>
 
@@ -250,7 +287,10 @@ export function RideDetailPage() {
               {ride.status === 'DRIVER_ARRIVED' && (
                 <Button size="lg" loading={busy} onClick={() => act('start', 'Trip started')}>Start trip</Button>
               )}
-              {ride.status === 'RIDE_STARTED' && (
+              {ride.status === 'RIDE_STARTED' && (ride.stopsDone ?? 0) < (ride.stops?.length ?? 0) && (
+                <Button size="lg" loading={busy} onClick={nextStop}>Reached next stop</Button>
+              )}
+              {ride.status === 'RIDE_STARTED' && (ride.stopsDone ?? 0) >= (ride.stops?.length ?? 0) && (
                 <Button size="lg" loading={busy} onClick={() => act('complete', 'Trip completed')}>Complete trip</Button>
               )}
             </div>
@@ -261,6 +301,10 @@ export function RideDetailPage() {
           )}
 
           {ride.status === 'RIDE_COMPLETED' && <PaymentCard rideId={ride.id} canRetry={role === 'RIDER'} />}
+
+          {(ride.status === 'RIDE_COMPLETED' || ride.status === 'RIDE_STARTED') && (role === 'RIDER' || role === 'DRIVER') && (
+            <ComplaintSection rideId={ride.id} />
+          )}
 
           {ride.status === 'RIDE_COMPLETED' && (role === 'RIDER' || role === 'DRIVER') && (
             <RatingForm rideId={ride.id} role={role} existing={ride.myRating} onSaved={refresh} />

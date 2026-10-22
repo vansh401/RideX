@@ -30,6 +30,21 @@ class GatewayRoutingAndSecurityTest extends GatewayTestBase {
         assertThat(get("/api/admin/analytics/ride-status-per-day", token).<String>json("$.service")).isEqualTo("analytics");
     }
 
+    // Phase 14: the new paths go to the service that owns the data (everything not listed goes to the core)
+    @Test
+    void thePhase14PathsGoToTheServicesThatOwnThem() {
+        String token = rider();
+
+        for (String path : new String[] {"/api/wallet", "/api/wallet/transactions", "/api/coupons/WELCOME50/preview", "/api/driver/earnings", "/api/admin/coupons",
+                "/api/admin/refunds", "/api/admin/ledger/summary", "/api/admin/incentives/run"}) {
+            assertThat(get(path, token).<String>json("$.service")).as(path).isEqualTo("payment");
+        }
+        assertThat(get("/api/admin/fraud/signals", token).<String>json("$.service")).isEqualTo("analytics");
+        assertThat(get("/api/admin/analytics/overview", token).<String>json("$.service")).isEqualTo("analytics");
+        assertThat(get("/api/complaints", token).<String>json("$.service")).as("complaints belong to the core").isEqualTo("core");
+        assertThat(get("/api/admin/complaints", token).<String>json("$.service")).isEqualTo("core");
+    }
+
     @Test
     void everythingElseGoesToTheCore() {
         String token = rider();

@@ -25,6 +25,8 @@ import java.util.Set;
  */
 public enum RideStatus {
 
+    /** Booked ahead (Phase 14): waits for its time, then starts searching. It does not occupy the rider: they can still take a ride now. */
+    SCHEDULED,
     REQUESTED,
     SEARCHING_DRIVER,
     DRIVER_ASSIGNED,
@@ -37,6 +39,7 @@ public enum RideStatus {
     private static final Map<RideStatus, Set<RideStatus>> ALLOWED = new EnumMap<>(RideStatus.class);
 
     static {
+        ALLOWED.put(SCHEDULED, EnumSet.of(SEARCHING_DRIVER, CANCELLED));
         ALLOWED.put(REQUESTED, EnumSet.of(SEARCHING_DRIVER, CANCELLED));
         ALLOWED.put(SEARCHING_DRIVER, EnumSet.of(DRIVER_ASSIGNED, CANCELLED));
         ALLOWED.put(DRIVER_ASSIGNED, EnumSet.of(DRIVER_ACCEPTED, SEARCHING_DRIVER, CANCELLED));
@@ -59,9 +62,9 @@ public enum RideStatus {
         return this == RIDE_COMPLETED || this == CANCELLED;
     }
 
-    /** A ride that still occupies its rider (and possibly a driver). */
+    /** A ride that still occupies its rider (and possibly a driver). A ride booked ahead does not: it only reserves the future. */
     public boolean isActive() {
-        return !isTerminal();
+        return !isTerminal() && this != SCHEDULED;
     }
 
     /** Statuses in which a driver is attached to the ride and cannot take another. */
@@ -71,7 +74,7 @@ public enum RideStatus {
 
     public static Set<RideStatus> activeStatuses() {
         EnumSet<RideStatus> active = EnumSet.allOf(RideStatus.class);
-        active.removeIf(RideStatus::isTerminal);
+        active.removeIf(status -> !status.isActive());
         return active;
     }
 }

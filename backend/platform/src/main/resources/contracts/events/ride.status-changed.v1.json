@@ -17,7 +17,11 @@
     "pickupAddress": { "type": ["string", "null"] },
     "dropoffAddress": { "type": ["string", "null"] },
     "fareTotal": { "type": ["number", "null"], "description": "The frozen fare, in currency. Money is a decimal number, never a float computed by the consumer." },
-    "currency": { "type": ["string", "null"], "minLength": 3, "maxLength": 3 }
+    "currency": { "type": ["string", "null"], "minLength": 3, "maxLength": 3 },
+    "category": { "type": ["string", "null"], "description": "BIKE, AUTO or CAB. Added in Phase 14 (optional: older events do not have it)." },
+    "pickupCell": { "type": ["string", "null"], "description": "The surge zone of the pickup point. Added in Phase 14." },
+    "surgeMultiplier": { "type": ["number", "null"], "description": "The surge multiplier frozen on the ride. Added in Phase 14." },
+    "couponCode": { "type": ["string", "null"], "description": "The coupon the rider asked to use. Added in Phase 14." }
   },
   "additionalProperties": true
 }

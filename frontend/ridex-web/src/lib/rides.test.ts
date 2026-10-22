@@ -82,3 +82,11 @@ describe('vehicle form validation', () => {
     expect(vehicleSchema.safeParse({ ...valid, seats: '9' }).success).toBe(false)
   })
 })
+
+describe('scheduled rides', () => {
+  it('are not "active" (they do not block booking) but the rider can still cancel them', () => {
+    expect(isActiveRide('SCHEDULED')).toBe(false)
+    expect(riderCanCancel('SCHEDULED')).toBe(true)
+    expect(driverCanCancel('SCHEDULED')).toBe(false)
+  })
+})

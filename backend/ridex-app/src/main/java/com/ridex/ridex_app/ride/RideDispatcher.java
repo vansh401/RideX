@@ -151,7 +151,7 @@ public class RideDispatcher {
         if (ride.getStatus() != RideStatus.SEARCHING_DRIVER) {
             return;
         }
-        if (ride.getRequestedAt().plusSeconds(properties.searchTimeoutSeconds()).isBefore(now)) {
+        if (ride.searchWindowStart().plusSeconds(properties.searchTimeoutSeconds()).isBefore(now)) {
             ride.cancel(null, ActorRole.SYSTEM, "No driver available nearby", now);
             return;
         }

@@ -100,6 +100,27 @@ public class Ride {
     @Column(nullable = false, updatable = false)
     private String currency;
 
+    // Phase 14
+    @Column(name = "pickup_cell")
+    private String pickupCell;
+    @Column(name = "coupon_code")
+    private String couponCode;
+    /** Set only for a ride booked ahead: when the rider wants to be picked up. */
+    @Column(name = "scheduled_for")
+    private Instant scheduledFor;
+    /** When the search for a driver began. Null on rides from before Phase 14 (they count from requestedAt). */
+    @Column(name = "search_started_at")
+    private Instant searchStartedAt;
+    @Column(name = "stops_total", nullable = false)
+    private int stopsTotal;
+    @Column(name = "stops_done", nullable = false)
+    private int stopsDone;
+
+    @OneToMany(mappedBy = "ride", cascade = CascadeType.ALL, orphanRemoval = true)
+    @jakarta.persistence.OrderBy("position")
+    @org.hibernate.annotations.BatchSize(size = 50)
+    private List<RideStop> stops = new ArrayList<>();
+
     @Column(name = "offer_expires_at")
     private Instant offerExpiresAt;
     @Column(name = "requested_at", nullable = false, updatable = false)
@@ -141,11 +162,27 @@ public class Ride {
     protected Ride() {
     }
 
+    /** What a ride can carry besides the basics (all optional). */
+    public record Extras(String pickupCell, String couponCode, Instant scheduledFor, List<PlaceInput> stops) {
+        public static final Extras NONE = new Extras(null, null, null, List.of());
+    }
+
     /** Creates the ride and immediately starts searching for a driver. */
     public static Ride request(User rider, VehicleCategory category,
                                String pickupAddress, LatLng pickup,
                                String dropoffAddress, LatLng dropoff,
                                FareQuote fare, Instant now) {
+        return request(rider, category, pickupAddress, pickup, dropoffAddress, dropoff, fare, now, Extras.NONE);
+    }
+
+    /**
+     * Creates the ride. An ordinary ride starts searching for a driver at once; a ride booked ahead (extras.scheduledFor) waits as SCHEDULED
+     * until {@link #beginSearch} is called when its time is near.
+     */
+    public static Ride request(User rider, VehicleCategory category,
+                               String pickupAddress, LatLng pickup,
+                               String dropoffAddress, LatLng dropoff,
+                               FareQuote fare, Instant now, Extras extras) {
         Ride ride = new Ride();
         ride.id = UUID.randomUUID();
         ride.rider = rider;
@@ -167,13 +204,59 @@ public class Ride {
         ride.totalFare = fare.total();
         ride.currency = fare.currency();
         ride.requestedAt = now;
+        ride.pickupCell = extras.pickupCell();
+        ride.couponCode = extras.couponCode();
+        ride.scheduledFor = extras.scheduledFor();
+        int position = 0;
+        for (PlaceInput stop : extras.stops()) {
+            ride.stops.add(new RideStop(ride, ++position, stop.address(), stop.location().latitude(), stop.location().longitude()));
+        }
+        ride.stopsTotal = position;
 
+        if (extras.scheduledFor() != null) {
+            // Booked ahead: nothing is searched yet. The first history line has no "from" status.
+            ride.status = RideStatus.SCHEDULED;
+            ride.history.add(new RideStatusChange(ride, null, RideStatus.SCHEDULED, rider.getId(), ActorRole.RIDER,
+                    "Ride scheduled", now));
+            return ride;
+        }
         // The very first history line has no "from" status
         ride.status = RideStatus.REQUESTED;
         ride.history.add(new RideStatusChange(ride, null, RideStatus.REQUESTED, rider.getId(), ActorRole.RIDER,
                 "Ride requested", now));
+        ride.searchStartedAt = now;
         ride.moveTo(RideStatus.SEARCHING_DRIVER, null, ActorRole.SYSTEM, "Looking for a driver", now);
         return ride;
+    }
+
+    /** How long before the pickup time a booked ride starts looking for a driver. */
+    public static final java.time.Duration SEARCH_LEAD = java.time.Duration.ofMinutes(10);
+
+    /**
+     * When the search for a driver began. For an ordinary ride that is the moment it was requested; for a ride booked ahead it is the moment it was
+     * promoted, NOT the booking time (which may be days earlier) and NOT a computed "pickup time minus lead" (which is already in the past if the
+     * promoter was late). The "no driver found" timeout counts from here.
+     */
+    public Instant searchWindowStart() {
+        return searchStartedAt != null ? searchStartedAt : requestedAt;
+    }
+
+    /** The time of a ride booked ahead is near: look for a driver now. */
+    public void beginSearch(Instant now) {
+        this.searchStartedAt = now;
+        moveTo(RideStatus.SEARCHING_DRIVER, null, ActorRole.SYSTEM, "Scheduled time is near: looking for a driver", now);
+    }
+
+    /** The driver reached the next stop. Only during the trip, and only in order. */
+    public void reachNextStop(UUID driverUserId, Instant now) {
+        if (status != RideStatus.RIDE_STARTED) {
+            throw new ConflictException("Stops are visited during the trip");
+        }
+        if (stopsDone >= stopsTotal) {
+            throw new ConflictException("This ride has no stop left to visit");
+        }
+        stops.get(stopsDone).reached(now);
+        stopsDone++;
     }
 
     // ----- driver offer -----
@@ -220,6 +303,9 @@ public class Ride {
     }
 
     public void complete(UUID driverUserId, Instant now) {
+        if (stopsDone < stopsTotal) {
+            throw new ConflictException("The ride cannot end before its stops are visited (" + (stopsTotal - stopsDone) + " left)");
+        }
         moveTo(RideStatus.RIDE_COMPLETED, driverUserId, ActorRole.DRIVER, "Trip completed", now);
         this.completedAt = now;
     }
@@ -291,4 +377,10 @@ public class Ride {
     public Instant getCancelledAt() { return cancelledAt; }
     public ActorRole getCancelledBy() { return cancelledBy; }
     public String getCancelReason() { return cancelReason; }
+    public String getPickupCell() { return pickupCell; }
+    public String getCouponCode() { return couponCode; }
+    public Instant getScheduledFor() { return scheduledFor; }
+    public int getStopsTotal() { return stopsTotal; }
+    public int getStopsDone() { return stopsDone; }
+    public List<RideStop> getStops() { return stops; }
 }

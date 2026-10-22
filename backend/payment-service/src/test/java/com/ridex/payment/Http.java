@@ -32,6 +32,16 @@ final class Http {
                 .POST(HttpRequest.BodyPublishers.ofString(json == null ? "" : json)));
     }
 
+    /** A POST with extra headers, for example Idempotency-Key. */
+    Response post(String path, String token, String json, String headerName, String headerValue) {
+        return send(builder(path, token).header("Content-Type", "application/json").header(headerName, headerValue)
+                .POST(HttpRequest.BodyPublishers.ofString(json == null ? "" : json)));
+    }
+
+    Response patch(String path, String token, String json) {
+        return send(builder(path, token).header("Content-Type", "application/json").method("PATCH", HttpRequest.BodyPublishers.ofString(json)));
+    }
+
     private HttpRequest.Builder builder(String path, String token) {
         HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create("http://localhost:" + port + path));
         if (token != null) {

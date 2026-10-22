@@ -14,6 +14,10 @@ public record PaymentEventData(
         String status,
         String failureReason,
         int attempts,
-        String gatewayReference
+        String gatewayReference,
+        /** Added in Phase 14, optional: what a coupon took off, how it was paid (WALLET or GATEWAY), and (payment.refunded) how much came back. */
+        BigDecimal discount,
+        String method,
+        BigDecimal refundAmount
 ) {
 }

@@ -71,7 +71,17 @@ public class PlatformKafkaAutoConfiguration {
         return TopicBuilder.name(Topics.DRIVER_EVENTS).partitions(3).replicas(1).build();
     }
 
+    @Bean
+    NewTopic complaintEventsTopic() {
+        return TopicBuilder.name(Topics.COMPLAINT_EVENTS).partitions(3).replicas(1).build();
+    }
+
     // Dead-letter topics: one partition is plenty, they hold only the rare failures
+    @Bean
+    NewTopic complaintEventsDeadLetterTopic() {
+        return TopicBuilder.name(Topics.deadLetterOf(Topics.COMPLAINT_EVENTS)).partitions(1).replicas(1).build();
+    }
+
     @Bean
     NewTopic rideEventsDeadLetterTopic() {
         return TopicBuilder.name(Topics.deadLetterOf(Topics.RIDE_EVENTS)).partitions(1).replicas(1).build();
@@ -104,7 +114,7 @@ public class PlatformKafkaAutoConfiguration {
         DeadLetterPublishingRecoverer recoverer = new DeadLetterPublishingRecoverer(template,
                 (record, exception) -> new TopicPartition(Topics.deadLetterOf(record.topic()), -1));
         // Every message that ends up in a dead-letter topic is counted: this number should be zero, and an alert watches it
-        for (String topic : List.of(Topics.RIDE_EVENTS, Topics.PAYMENT_EVENTS, Topics.DRIVER_EVENTS)) {
+        for (String topic : List.of(Topics.RIDE_EVENTS, Topics.PAYMENT_EVENTS, Topics.DRIVER_EVENTS, Topics.COMPLAINT_EVENTS)) {
             Counter.builder("ridex.dead.letters").tag("topic", topic).register(metrics);   // visible as 0 from the start
         }
         ConsumerRecordRecoverer counted = (record, exception) -> {

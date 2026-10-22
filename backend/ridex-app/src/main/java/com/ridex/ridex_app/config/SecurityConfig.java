@@ -70,8 +70,10 @@ public class SecurityConfig {
                         // URL rules a caller with the wrong role would see validation errors instead of 403.
                         .requestMatchers(HttpMethod.POST, "/api/rides").hasRole("RIDER")
                         .requestMatchers(HttpMethod.POST, "/api/rides/*/accept", "/api/rides/*/reject",
-                                "/api/rides/*/arrived", "/api/rides/*/start", "/api/rides/*/complete").hasRole("DRIVER")
+                                "/api/rides/*/arrived", "/api/rides/*/start", "/api/rides/*/complete", "/api/rides/*/stops/next").hasRole("DRIVER")
                         .requestMatchers("/api/rides/*/cancel", "/api/rides/*/ratings").hasAnyRole("RIDER", "DRIVER")
+                        // Phase 14: complaints are filed by the two people on a ride; administrators handle them (/api/admin/** above)
+                        .requestMatchers("/api/complaints", "/api/complaints/**").hasAnyRole("RIDER", "DRIVER")
                         .requestMatchers(HttpMethod.GET, "/api/rides", "/api/rides/current").hasAnyRole("RIDER", "DRIVER")
                         .requestMatchers(HttpMethod.GET, "/api/rides/*", "/api/rides/*/timeline", "/api/rides/*/driver-location").hasAnyRole("RIDER", "DRIVER", "ADMIN")
                         .requestMatchers("/api/drivers/**").hasRole("DRIVER")

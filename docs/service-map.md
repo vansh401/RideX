@@ -7,11 +7,11 @@ The one-page picture of Phase 7. For the reasons behind it read [microservices-c
 | Service | Port | Database | Job | Talks to |
 |---|---|---|---|---|
 | **api-gateway** | 8000 | none (Redis for counters) | The one entry point: routing, token check, rate limit, CORS, logging | routes to everything; reads the core's public key |
-| **core** (`ridex-app`) | 8080 | `ridex_db` | Auth, users, riders, drivers, rides, matching, ratings, WebSockets. Issues the tokens | publishes `ride-events` and `driver-events`; calls **pricing** (REST); consumes `payment-events` (saga) |
+| **core** (`ridex-app`) | 8080 | `ridex_db` | Auth, users, riders, drivers, rides, matching, ratings, WebSockets. Issues the tokens | publishes `ride-events`, `driver-events` and `complaint-events`; measures demand and writes surge multipliers to Redis; calls **pricing** (REST); consumes `payment-events` (saga) |
 | **notification-service** | 8081 | `notification_db` | Turns events into stored and live notifications | consumes all three topics; pushes to the core's WebSockets through Redis |
-| **payment-service** | 8082 | `payment_db` | Charges riders through the payment gateway, safely | consumes `ride-events`; publishes `payment-events`; calls the **gateway** (HTTP, protected) |
+| **payment-service** | 8082 | `payment_db` | Wallet and double-entry ledger, coupons, refunds, driver earnings and incentives; charges cards through the payment gateway, safely | consumes `ride-events` and `complaint-events`; publishes `payment-events`; calls the **gateway** (HTTP, protected); caches earnings in Redis |
 | **pricing-service** | 8083 | none (stateless) | The fare formula | answers the core (and riders) over REST |
-| **analytics-service** | 8084 | `analytics_db` | Audit log, daily counts, dead letters, consumer lag | consumes every topic and every `.DLT` topic |
+| **analytics-service** | 8084 | `analytics_db` | Audit log, dead letters, consumer lag; report facts and charts; fraud signals | consumes every topic (including `complaint-events`) and every `.DLT` topic |
 | **platform** (library) | none | none | Event contracts, outbox, idempotent consumers, JWT validation, error shape. **No business logic** | linked into every service |
 
 Infrastructure (Docker): PostgreSQL 17 (one server, four databases), Redis 7, Kafka (KRaft, one broker).

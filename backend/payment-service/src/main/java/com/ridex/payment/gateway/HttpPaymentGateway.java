@@ -63,14 +63,28 @@ public class HttpPaymentGateway implements PaymentGateway {
 
     @Override
     public ChargeResult charge(ChargeRequest request) {
+        ChargeResponse response = protectedCall(() -> call("/charges", request.idempotencyKey(), new ChargeBody(request.amount(), request.currency(), request.description())));
+        return new ChargeResult(response.success(), response.reference(), response.failureReason());
+    }
+
+    /** What we send to ask for a refund. */
+    record RefundBody(String chargeReference, BigDecimal amount, String currency) {
+    }
+
+    @Override
+    public RefundResult refund(RefundRequest request) {
+        ChargeResponse response = protectedCall(() -> call("/refunds", request.idempotencyKey(), new RefundBody(request.chargeReference(), request.amount(), request.currency())));
+        return new RefundResult(response.success(), response.reference(), response.failureReason());
+    }
+
+    /** Every call to the gateway goes through the same four protections, whatever it asks for. */
+    private ChargeResponse protectedCall(Supplier<ChargeResponse> call) {
         try {
             // Each decorator wraps the previous one: retry is outermost, then the circuit breaker, then the bulkhead
-            Supplier<ChargeResponse> supplier = () -> call(request);
-            supplier = Bulkhead.decorateSupplier(bulkhead, supplier);
+            Supplier<ChargeResponse> supplier = Bulkhead.decorateSupplier(bulkhead, call);
             supplier = CircuitBreaker.decorateSupplier(circuitBreaker, supplier);
             supplier = Retry.decorateSupplier(retry, supplier);
-            ChargeResponse response = supplier.get();
-            return new ChargeResult(response.success(), response.reference(), response.failureReason());
+            return supplier.get();
         } catch (CallNotPermittedException e) {
             throw new GatewayUnavailableException("The payment gateway circuit is open: not even trying", e);
         } catch (BulkheadFullException e) {
@@ -80,12 +94,12 @@ public class HttpPaymentGateway implements PaymentGateway {
         }
     }
 
-    private ChargeResponse call(ChargeRequest request) {
+    private ChargeResponse call(String path, String idempotencyKey, Object body) {
         try {
             ChargeResponse response = client.post()
-                    .uri("/charges")
-                    .header("Idempotency-Key", request.idempotencyKey())
-                    .body(new ChargeBody(request.amount(), request.currency(), request.description()))
+                    .uri(path)
+                    .header("Idempotency-Key", idempotencyKey)
+                    .body(body)
                     .retrieve()
                     .body(ChargeResponse.class);
             if (response == null) {

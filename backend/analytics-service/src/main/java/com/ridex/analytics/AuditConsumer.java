@@ -28,7 +28,7 @@ public class AuditConsumer {
         this.jdbc = jdbc;
     }
 
-    @KafkaListener(topics = {Topics.RIDE_EVENTS, Topics.PAYMENT_EVENTS, Topics.DRIVER_EVENTS}, groupId = Groups.AUDIT)
+    @KafkaListener(topics = {Topics.RIDE_EVENTS, Topics.PAYMENT_EVENTS, Topics.DRIVER_EVENTS, Topics.COMPLAINT_EVENTS}, groupId = Groups.AUDIT)
     public void onEvent(ConsumerRecord<String, String> record) {
         EventEnvelope event = codec.parse(record.value());
         processed.runOnce(Groups.AUDIT, event.eventId(), () -> jdbc.update("""

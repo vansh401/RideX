@@ -104,6 +104,21 @@ class PermissionMatrixIntegrationTest extends AbstractIntegrationTest {
             "POST,/api/rides/00000000-0000-0000-0000-000000000001/accept,RIDER,403",
             "POST,/api/rides/00000000-0000-0000-0000-000000000001/accept,ADMIN,403",
             "POST,/api/rides/00000000-0000-0000-0000-000000000001/complete,RIDER,403",
+            "POST,/api/rides/00000000-0000-0000-0000-000000000001/stops/next,RIDER,403",
+            "POST,/api/rides/00000000-0000-0000-0000-000000000001/stops/next,ADMIN,403",
+            "POST,/api/rides/00000000-0000-0000-0000-000000000001/stops/next,NONE,401",
+
+            // ---- Phase 14: complaints (riders and drivers file them, administrators handle them) ----
+            "GET,/api/complaints,NONE,401",
+            "GET,/api/complaints,ADMIN,403",
+            "GET,/api/complaints,RIDER,200",
+            "GET,/api/complaints,DRIVER,200",
+            "POST,/api/complaints,ADMIN,403",
+            "GET,/api/admin/complaints,NONE,401",
+            "GET,/api/admin/complaints,RIDER,403",
+            "GET,/api/admin/complaints,DRIVER,403",
+            "GET,/api/admin/complaints,ADMIN,200",
+            "POST,/api/admin/complaints/00000000-0000-0000-0000-000000000001/resolve,RIDER,403",
 
             // ---- shared rides endpoints ----
             "GET,/api/rides,NONE,401",

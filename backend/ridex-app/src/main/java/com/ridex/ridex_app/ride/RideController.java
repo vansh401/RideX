@@ -125,6 +125,13 @@ public class RideController {
         return service.start(principal.id(), rideId);
     }
 
+    @PostMapping("/{rideId}/stops/next")
+    @PreAuthorize("hasRole('DRIVER')")
+    @Operation(summary = "Reach the next stop", description = "During the trip, in the order the rider listed the stops. The trip cannot be completed before all stops are visited.")
+    public RideResponse nextStop(@AuthenticationPrincipal AuthenticatedUser principal, @PathVariable UUID rideId) {
+        return service.nextStop(principal.id(), rideId);
+    }
+
     @PostMapping("/{rideId}/complete")
     @PreAuthorize("hasRole('DRIVER')")
     @Operation(summary = "Complete the trip", description = "Only while the trip is in progress.")

@@ -15,6 +15,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.ridex.platform.web.LogContext;
+import com.ridex.platform.geo.SurgeZones;
+import com.ridex.ridex_app.common.BadRequestException;
 import com.ridex.ridex_app.common.ConflictException;
 import com.ridex.ridex_app.common.PageResponse;
 import com.ridex.ridex_app.common.Paging;
@@ -40,6 +42,9 @@ import com.ridex.ridex_app.user.UserService;
 public class RideService {
 
     private static final Set<RideStatus> ACTIVE = RideStatus.activeStatuses();
+    static final java.time.Duration MIN_LEAD = java.time.Duration.ofMinutes(15);
+    static final java.time.Duration MAX_AHEAD = java.time.Duration.ofDays(7);
+    static final int MAX_SCHEDULED_PER_RIDER = 5;
     /** Statuses in which the driver is on the way to the rider or driving them. */
     private static final Set<RideStatus> TRIP_IN_PROGRESS =
             Set.of(RideStatus.DRIVER_ACCEPTED, RideStatus.DRIVER_ARRIVED, RideStatus.RIDE_STARTED);
@@ -83,7 +88,17 @@ public class RideService {
     @Transactional
     public RideResponse request(UUID riderId, RideRequest request) {
         User rider = userService.getActiveUser(riderId);
-        if (rideRepository.findFirstByRiderIdAndStatusIn(riderId, ACTIVE).isPresent()) {
+        Instant now = Instant.now();
+        boolean scheduled = request.scheduledFor() != null;
+        if (scheduled) {
+            if (request.scheduledFor().isBefore(now.plus(MIN_LEAD)) || request.scheduledFor().isAfter(now.plus(MAX_AHEAD))) {
+                throw new BadRequestException("A ride can be booked from 15 minutes to 7 days ahead");
+            }
+            if (rideRepository.countByRiderIdAndStatus(riderId, RideStatus.SCHEDULED) >= MAX_SCHEDULED_PER_RIDER) {
+                throw new ConflictException("You can have at most " + MAX_SCHEDULED_PER_RIDER + " rides booked ahead");
+            }
+        } else if (rideRepository.findFirstByRiderIdAndStatusIn(riderId, ACTIVE).isPresent()) {
+            // (a ride booked ahead does not occupy the rider: it is checked again when its time comes)
             throw new ConflictException("You already have a ride in progress");
         }
 
@@ -92,18 +107,27 @@ public class RideService {
             throw new ConflictException("The payment for your ride " + unpaid + " failed. Please settle it before booking another ride");
         });
 
-        FareQuote fare = pricingClient.quote(
-                request.pickup().location(), request.dropoff().location(), request.category());
-        Instant now = Instant.now();
+        List<PlaceInput> stops = request.stopsOrEmpty();
+        // The plain call when nothing special is asked, so ordinary rides are priced exactly as before. A ride booked ahead has its price fixed
+        // at booking: no surge (the demand of THAT moment must not decide what a booking for next week costs).
+        FareQuote fare = stops.isEmpty() && !scheduled
+                ? pricingClient.quote(request.pickup().location(), request.dropoff().location(), request.category())
+                : pricingClient.quote(request.pickup().location(), request.dropoff().location(), request.category(),
+                        stops.stream().map(PlaceInput::location).toList(), scheduled);
+        String coupon = request.couponCode() == null || request.couponCode().isBlank() ? null : request.couponCode().trim().toUpperCase(java.util.Locale.ROOT);
+        Ride.Extras extras = new Ride.Extras(SurgeZones.cellOf(request.pickup().location().latitude().doubleValue(),
+                request.pickup().location().longitude().doubleValue()), coupon, scheduled ? request.scheduledFor() : null, stops);
         Ride ride = Ride.request(rider, request.category(),
                 request.pickup().address(), request.pickup().location(),
-                request.dropoff().address(), request.dropoff().location(), fare, now);
+                request.dropoff().address(), request.dropoff().location(), fare, now, extras);
 
         // Flush now: the "one active ride per rider" unique index is checked here, inside this method,
         // so two requests racing each other cannot both get through
         rideRepository.saveAndFlush(ride);
         MDC.put(LogContext.RIDE_ID, ride.getId().toString());   // from here on every log line of this request names the ride (removed by RideLogContextConfig)
-        dispatcher.tryAssign(ride, now);
+        if (!scheduled) {
+            dispatcher.tryAssign(ride, now);
+        }
         // Saving again publishes the status changes made by tryAssign (the offer), see Ride.domainEvents
         rideRepository.save(ride);
         return RideResponse.from(ride, ActorRole.RIDER, null);
@@ -212,6 +236,15 @@ public class RideService {
         Ride ride = assignedRide(driverUserId, rideId);
         ride.start(driverUserId, Instant.now());
         return saved(ride, driverUserId);
+    }
+
+    /** The driver reached the next stop of the trip. */
+    @Transactional
+    public RideResponse nextStop(UUID driverUserId, UUID rideId) {
+        Ride ride = assignedRide(driverUserId, rideId);
+        ride.reachNextStop(driverUserId, Instant.now());
+        rideRepository.saveAndFlush(ride);
+        return toResponse(ride, ActorRole.DRIVER, driverUserId);
     }
 
     @Transactional

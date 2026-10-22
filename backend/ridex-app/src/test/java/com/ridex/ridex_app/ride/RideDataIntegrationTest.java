@@ -314,7 +314,7 @@ class RideDataIntegrationTest extends AbstractApiTest {
 
     @Test
     void registeringARiderCreatesTheirProfileButRegisteringADriverDoesNot() {
-        String suffix = String.valueOf(System.nanoTime() % 1_000_000);
+        String suffix = String.format("%06d", System.nanoTime() % 1_000_000);
         String riderEmail = "newrider" + suffix + "@test.ridex";
         String driverEmail = "newdriver" + suffix + "@test.ridex";
         String body = "{'fullName':'Test Person','email':'%s','phone':'%s','password':'Secret123','role':'%s'}";

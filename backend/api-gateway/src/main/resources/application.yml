@@ -83,7 +83,8 @@ spring:
               uri: ${PAYMENT_URL:http://localhost:8082}
               order: 20
               predicates:
-                - Path=/api/payments/**,/api/admin/payments/**
+                # Phase 14: the wallet, coupons, driver earnings and the finance admin pages live with the money
+                - Path=/api/payments/**,/api/admin/payments/**,/api/wallet/**,/api/coupons/**,/api/driver/earnings,/api/admin/coupons/**,/api/admin/refunds/**,/api/admin/ledger/**,/api/admin/incentives/**
               filters: *general-limit
 
             - id: pricing-service
@@ -97,7 +98,7 @@ spring:
               uri: ${ANALYTICS_URL:http://localhost:8084}
               order: 20
               predicates:
-                - Path=/api/admin/events/**,/api/admin/analytics/**
+                - Path=/api/admin/events/**,/api/admin/analytics/**,/api/admin/fraud/**
               filters: *general-limit
 
             # ---- live updates. A WebSocket is an HTTP request that upgrades itself, hence the ws:// scheme ----
