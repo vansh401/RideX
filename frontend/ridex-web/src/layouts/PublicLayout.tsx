@@ -115,7 +115,7 @@ function PublicNav() {
 
 function Footer() {
   return (
-    <footer className="border-t border-border bg-surface">
+    <footer className="glass rounded-none border-x-0 border-b-0">
       <div className="mx-auto grid max-w-7xl gap-10 px-4 py-12 sm:px-6 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
         <div>
           <Logo />
@@ -159,7 +159,7 @@ function Footer() {
 
 export function PublicLayout() {
   return (
-    <div className="min-h-screen bg-canvas">
+    <div className="min-h-screen">
       <PublicNav />
       <Outlet />
       <Footer />

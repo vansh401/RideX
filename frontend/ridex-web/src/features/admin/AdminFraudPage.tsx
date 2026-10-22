@@ -40,7 +40,7 @@ export function AdminFraudPage() {
       {summary.data && summary.data.length > 0 && (
         <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {summary.data.map((r) => (
-            <div key={r.rule} className="rounded-lg border border-border bg-surface p-4 text-sm">
+            <div key={r.rule} className="rounded-lg panel border border-border p-4 text-sm">
               <p className="font-semibold text-fg">{r.rule}</p>
               <p className="text-fg-muted">{r.total} raised · {r.open} open · {r.confirmed} confirmed · {r.dismissed} dismissed</p>
             </div>
@@ -62,7 +62,7 @@ export function AdminFraudPage() {
         <>
           <ul className="flex flex-col gap-3">
             {data.content.map((s) => (
-              <li key={s.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-surface p-4">
+              <li key={s.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg panel border border-border p-4">
                 <div className="min-w-0 text-sm">
                   <p className="flex items-center gap-2 font-semibold text-fg">
                     {s.rule} <Badge tone={s.severity >= 3 ? 'danger' : 'warning'}>severity {s.severity}</Badge>

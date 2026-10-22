@@ -27,7 +27,7 @@ export function AdminVehiclesPage() {
         <>
           <ul className="flex flex-col gap-3">
             {data.content.map((v) => (
-              <li key={v.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-surface p-4">
+              <li key={v.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg panel border border-border p-4">
                 <div>
                   <p className="font-semibold text-fg">{v.color} {v.make} {v.model}</p>
                   <p className="tabular text-sm text-fg-muted">{v.registrationNumber} · {CATEGORY_LABEL[v.category]} · {v.driverName}</p>

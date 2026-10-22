@@ -9,6 +9,7 @@ import { StatCard } from '@/components/brand/StatCard'
 import { Alert } from '@/components/ui/alert'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import { CHART, tooltipStyle } from '@/lib/chartTheme'
 import { formatDateTime, formatINR } from '@/lib/format'
 import { usePolling } from '@/lib/usePolling'
 
@@ -38,11 +39,11 @@ export function EarningsPage() {
               <div className="h-64" role="img" aria-label="Bar chart of earnings per day">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={data.daily.map((d) => ({ ...d, label: d.day.slice(5) }))}>
-                    <CartesianGrid stroke="#2a2a30" vertical={false} />
-                    <XAxis dataKey="label" stroke="#8a8a93" fontSize={12} interval={4} />
-                    <YAxis stroke="#8a8a93" fontSize={12} />
-                    <Tooltip contentStyle={{ background: '#16161a', border: '1px solid #2a2a30', borderRadius: 8 }} cursor={{ fill: '#ffffff10' }} />
-                    <Bar dataKey="amount" name="Earned (₹)" fill="#e8c547" radius={[6, 6, 0, 0]} />
+                    <CartesianGrid stroke={CHART.grid} vertical={false} />
+                    <XAxis dataKey="label" stroke={CHART.axis} fontSize={12} interval={4} />
+                    <YAxis stroke={CHART.axis} fontSize={12} />
+                    <Tooltip contentStyle={tooltipStyle} cursor={{ fill: '#ffffff10' }} />
+                    <Bar dataKey="amount" name="Earned (₹)" fill={CHART.accent} radius={[6, 6, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -56,7 +57,7 @@ export function EarningsPage() {
             <ul className="flex flex-col gap-2">
               {data.recent.map((t) => (
                 <li key={`${t.rideId}${t.at}`}>
-                  <Link to={`/rides/${t.rideId}`} className="flex items-center justify-between rounded-lg border border-border bg-surface p-3 hover:border-fg-muted">
+                  <Link to={`/rides/${t.rideId}`} className="flex items-center justify-between rounded-lg panel border border-border p-3 hover:border-fg-muted">
                     <span className="text-sm text-fg-secondary">{formatDateTime(t.at)}</span>
                     <span className="tabular font-semibold text-fg">{formatINR(t.amount)}</span>
                   </Link>

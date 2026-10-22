@@ -17,10 +17,10 @@ export function SheetContent({
 }: ComponentProps<typeof SheetPrimitive.Content>) {
   return (
     <SheetPrimitive.Portal>
-      <SheetPrimitive.Overlay className="fixed inset-0 z-50 bg-overlay animate-fade-in" />
+      <SheetPrimitive.Overlay className="fixed inset-0 z-50 bg-overlay backdrop-blur-sm animate-fade-in" />
       <SheetPrimitive.Content
         className={cn(
-          'fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] flex-col bg-surface p-4 shadow-modal',
+          'glass fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] flex-col rounded-r-xl bg-surface/90 p-4 shadow-modal',
           'animate-slide-in-left',
           className,
         )}

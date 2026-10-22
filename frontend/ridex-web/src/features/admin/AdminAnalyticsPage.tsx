@@ -9,6 +9,7 @@ import { Alert } from '@/components/ui/alert'
 import { Card, CardContent } from '@/components/ui/card'
 import { SelectField } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
+import { CHART, tooltipStyle } from '@/lib/chartTheme'
 import { formatINR } from '@/lib/format'
 import { CATEGORY_LABEL } from '@/lib/rides'
 import { usePolling } from '@/lib/usePolling'
@@ -19,7 +20,7 @@ interface Hour { hour: number; rides: number }
 interface Zone { zone: string; requests: number; completed: number; averageSurge: number }
 interface TopDriver { driverUserId: string; rides: number; grossBookings: number }
 
-const tooltip = { background: '#16161a', border: '1px solid #2a2a30', borderRadius: 8 }
+const tooltip = tooltipStyle
 
 function ChartCard({ title, label, children }: { title: string; label: string; children: React.ReactNode }) {
   return (
@@ -82,45 +83,45 @@ export function AdminAnalyticsPage() {
         {daily.data && (
           <ChartCard title="Rides per day" label="Line chart of rides requested and completed per day">
             <LineChart data={daily.data.map((d) => ({ ...d, label: d.day.slice(5) }))}>
-              <CartesianGrid stroke="#2a2a30" vertical={false} />
-              <XAxis dataKey="label" stroke="#8a8a93" fontSize={12} interval="preserveStartEnd" />
-              <YAxis allowDecimals={false} stroke="#8a8a93" fontSize={12} />
+              <CartesianGrid stroke={CHART.grid} vertical={false} />
+              <XAxis dataKey="label" stroke={CHART.axis} fontSize={12} interval="preserveStartEnd" />
+              <YAxis allowDecimals={false} stroke={CHART.axis} fontSize={12} />
               <Tooltip contentStyle={tooltip} />
-              <Line type="monotone" dataKey="requested" name="Requested" stroke="#8a8a93" dot={false} />
-              <Line type="monotone" dataKey="completed" name="Completed" stroke="#e8c547" dot={false} strokeWidth={2} />
+              <Line type="monotone" dataKey="requested" name="Requested" stroke={CHART.axis} dot={false} />
+              <Line type="monotone" dataKey="completed" name="Completed" stroke={CHART.accent} dot={false} strokeWidth={2} />
             </LineChart>
           </ChartCard>
         )}
         {daily.data && (
           <ChartCard title="Gross bookings per day (₹)" label="Bar chart of gross bookings per day">
             <BarChart data={daily.data.map((d) => ({ ...d, label: d.day.slice(5) }))}>
-              <CartesianGrid stroke="#2a2a30" vertical={false} />
-              <XAxis dataKey="label" stroke="#8a8a93" fontSize={12} interval="preserveStartEnd" />
-              <YAxis stroke="#8a8a93" fontSize={12} />
+              <CartesianGrid stroke={CHART.grid} vertical={false} />
+              <XAxis dataKey="label" stroke={CHART.axis} fontSize={12} interval="preserveStartEnd" />
+              <YAxis stroke={CHART.axis} fontSize={12} />
               <Tooltip contentStyle={tooltip} cursor={{ fill: '#ffffff10' }} />
-              <Bar dataKey="grossBookings" name="₹" fill="#e8c547" radius={[6, 6, 0, 0]} />
+              <Bar dataKey="grossBookings" name="₹" fill={CHART.accent} radius={[6, 6, 0, 0]} />
             </BarChart>
           </ChartCard>
         )}
         {hours.data && (
           <ChartCard title="Demand by hour of day" label="Bar chart of rides requested per hour">
             <BarChart data={hours.data}>
-              <CartesianGrid stroke="#2a2a30" vertical={false} />
-              <XAxis dataKey="hour" stroke="#8a8a93" fontSize={12} />
-              <YAxis allowDecimals={false} stroke="#8a8a93" fontSize={12} />
+              <CartesianGrid stroke={CHART.grid} vertical={false} />
+              <XAxis dataKey="hour" stroke={CHART.axis} fontSize={12} />
+              <YAxis allowDecimals={false} stroke={CHART.axis} fontSize={12} />
               <Tooltip contentStyle={tooltip} cursor={{ fill: '#ffffff10' }} />
-              <Bar dataKey="rides" name="Rides" fill="#e8c547" radius={[6, 6, 0, 0]} />
+              <Bar dataKey="rides" name="Rides" fill={CHART.accent} radius={[6, 6, 0, 0]} />
             </BarChart>
           </ChartCard>
         )}
         {categories.data && (
           <ChartCard title="Revenue by vehicle type (₹)" label="Bar chart of gross bookings per vehicle category">
             <BarChart data={categories.data.map((c) => ({ ...c, name: CATEGORY_LABEL[c.category] ?? c.category }))}>
-              <CartesianGrid stroke="#2a2a30" vertical={false} />
-              <XAxis dataKey="name" stroke="#8a8a93" fontSize={12} />
-              <YAxis stroke="#8a8a93" fontSize={12} />
+              <CartesianGrid stroke={CHART.grid} vertical={false} />
+              <XAxis dataKey="name" stroke={CHART.axis} fontSize={12} />
+              <YAxis stroke={CHART.axis} fontSize={12} />
               <Tooltip contentStyle={tooltip} cursor={{ fill: '#ffffff10' }} />
-              <Bar dataKey="grossBookings" name="₹" fill="#e8c547" radius={[6, 6, 0, 0]} />
+              <Bar dataKey="grossBookings" name="₹" fill={CHART.accent} radius={[6, 6, 0, 0]} />
             </BarChart>
           </ChartCard>
         )}

@@ -3,7 +3,9 @@ import { MotionConfig } from 'motion/react'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
-import { Toaster } from 'sonner'
+import { AmbientBackground } from './components/brand/AmbientBackground.tsx'
+import { RouteProgress } from './components/brand/RouteProgress.tsx'
+import { Toaster } from './components/ui/sonner.tsx'
 import './styles/globals.css'
 import App from './App.tsx'
 import { AuthProvider } from './auth/AuthProvider.tsx'
@@ -14,18 +16,10 @@ createRoot(document.getElementById('root')!).render(
     <MotionConfig reducedMotion="user">
       <BrowserRouter>
         <AuthProvider>
+          <AmbientBackground />
+          <RouteProgress />
           <App />
-          <Toaster
-            theme="dark"
-            position="top-right"
-            toastOptions={{
-              style: {
-                background: 'var(--bg-elevated)',
-                border: '1px solid var(--border-strong)',
-                color: 'var(--text-primary)',
-              },
-            }}
-          />
+          <Toaster />
         </AuthProvider>
       </BrowserRouter>
     </MotionConfig>

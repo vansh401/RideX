@@ -22,6 +22,7 @@ import { Input } from '@/components/ui/input'
 import { reveal, stagger } from '@/lib/motion'
 import { homePathFor } from '@/routes/navigation'
 import { HeroArt } from './HeroArt'
+import { HeroWindows } from './HeroWindows'
 
 /** Fades a section's content in as it scrolls into view (once). */
 function Reveal({ children, className }: { children: ReactNode; className?: string }) {
@@ -64,8 +65,9 @@ function Hero() {
     <section className="relative isolate overflow-hidden pt-16">
       {/* Illustration on the right, fading into the page on the left so text stays readable */}
       <HeroArt className="absolute inset-y-0 right-0 -z-10 h-full w-full opacity-80 md:w-[75%]" />
-      <div className="absolute inset-0 -z-10 bg-gradient-to-r from-canvas via-canvas/85 to-transparent" />
-      <div className="absolute inset-x-0 bottom-0 -z-10 h-40 bg-gradient-to-t from-canvas to-transparent" />
+      <div className="absolute inset-0 -z-10 bg-gradient-to-r from-canvas/80 via-canvas/45 to-transparent" />
+      <div className="absolute inset-x-0 bottom-0 -z-10 h-40 bg-gradient-to-t from-canvas/80 to-transparent" />
+      <HeroWindows />
 
       <div className="mx-auto flex min-h-[calc(100svh-4rem)] max-w-7xl flex-col justify-center gap-10 px-4 py-16 sm:px-6">
         <motion.div variants={stagger} initial="hidden" animate="visible" className="max-w-2xl">
@@ -74,7 +76,7 @@ function Hero() {
           </motion.p>
           <motion.h1
             variants={reveal}
-            className="text-[clamp(2.5rem,6vw,4.5rem)] font-bold leading-[1.05] tracking-tight text-fg"
+            className="text-[clamp(2.5rem,6vw,4.75rem)] font-bold leading-[1.03] tracking-tight text-gradient"
           >
             Go anywhere
             <br />
@@ -88,7 +90,7 @@ function Hero() {
             variants={reveal}
             onSubmit={handleSubmit}
             aria-label="Plan a trip"
-            className="glass mt-8 flex max-w-md flex-col gap-3 rounded-xl p-4 shadow-raised"
+            className="glass glass-float mt-8 flex max-w-md flex-col gap-3 rounded-xl p-4"
           >
             <div className="relative">
               <MapPin className="absolute left-3.5 top-1/2 size-5 -translate-y-1/2 text-fg-muted" aria-hidden />
@@ -148,7 +150,7 @@ function HowItWorks() {
           className="mt-12 grid gap-6 md:grid-cols-3"
         >
           {STEPS.map(({ icon: Icon, title, text }, index) => (
-            <motion.li key={title} variants={reveal} className="rounded-lg border border-border bg-surface p-6">
+            <motion.li key={title} variants={reveal} className="panel lift rounded-lg border border-border p-6">
               <div className="flex items-center justify-between">
                 <span className="grid size-11 place-items-center rounded-md bg-accent-subtle text-accent">
                   <Icon className="size-5" aria-hidden />
@@ -174,7 +176,7 @@ const RIDER_POINTS: { icon: LucideIcon; title: string; text: string }[] = [
 
 function Riders() {
   return (
-    <section id="riders" className="scroll-mt-20 border-t border-border bg-surface py-24">
+    <section id="riders" className="scroll-mt-20 border-t border-border py-24">
       <div className="mx-auto grid max-w-7xl gap-12 px-4 sm:px-6 lg:grid-cols-[1fr_1.2fr] lg:items-center">
         <Reveal>
           <SectionHeading
@@ -199,7 +201,7 @@ function Riders() {
           className="grid gap-4 sm:grid-cols-2"
         >
           {RIDER_POINTS.map(({ icon: Icon, title, text }) => (
-            <motion.li key={title} variants={reveal} className="rounded-lg border border-border bg-canvas p-5">
+            <motion.li key={title} variants={reveal} className="panel lift rounded-lg border border-border p-5">
               <Icon className="size-6 text-accent" aria-hidden />
               <h3 className="mt-4 font-semibold text-fg">{title}</h3>
               <p className="mt-1 text-sm text-fg-secondary">{text}</p>
@@ -239,7 +241,7 @@ function Drivers() {
         <Reveal>
           <ol className="space-y-3">
             {DRIVER_STEPS.map((step, index) => (
-              <li key={step} className="flex items-center gap-4 rounded-lg border border-border bg-surface p-4">
+              <li key={step} className="panel flex items-center gap-4 rounded-lg border border-border p-4">
                 <span className="tabular grid size-10 shrink-0 place-items-center rounded-full bg-accent-subtle font-bold text-accent">
                   {index + 1}
                 </span>
@@ -262,7 +264,7 @@ const SAFETY: { icon: LucideIcon; title: string; text: string }[] = [
 
 function Safety() {
   return (
-    <section id="safety" className="scroll-mt-20 border-t border-border bg-surface py-24">
+    <section id="safety" className="scroll-mt-20 border-t border-border py-24">
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
         <Reveal>
           <SectionHeading eyebrow="Safety" title="Built to be trusted" />
@@ -275,7 +277,7 @@ function Safety() {
           className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4"
         >
           {SAFETY.map(({ icon: Icon, title, text }) => (
-            <motion.li key={title} variants={reveal} className="rounded-lg border border-border bg-canvas p-6">
+            <motion.li key={title} variants={reveal} className="panel lift rounded-lg border border-border p-6">
               <span className="grid size-11 place-items-center rounded-md bg-accent-subtle text-accent">
                 <Icon className="size-5" aria-hidden />
               </span>

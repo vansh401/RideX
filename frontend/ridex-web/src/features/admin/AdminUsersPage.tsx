@@ -72,7 +72,7 @@ export function AdminUsersPage() {
         <>
           <ul className="flex flex-col gap-3">
             {data.content.map((u) => (
-              <li key={u.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-surface p-4">
+              <li key={u.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg panel border border-border p-4">
                 <div className="min-w-0">
                   <p className="font-semibold text-fg">{u.fullName}</p>
                   <p className="truncate text-sm text-fg-muted">{u.email} · {u.phone}</p>

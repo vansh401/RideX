@@ -16,7 +16,7 @@ const POINTS = [
  */
 export function AuthLayout() {
   return (
-    <div className="grid min-h-screen bg-canvas lg:grid-cols-[1.05fr_1fr]">
+    <div className="grid min-h-screen lg:grid-cols-[1.05fr_1fr]">
       <aside className="relative hidden overflow-hidden border-r border-border lg:block">
         <HeroArt className="absolute inset-0 size-full opacity-90" />
         <div className="absolute inset-0 bg-gradient-to-t from-canvas via-canvas/50 to-transparent" />
@@ -24,14 +24,14 @@ export function AuthLayout() {
           <Link to="/" aria-label="RideX home">
             <Logo />
           </Link>
-          <div className="max-w-md">
-            <h2 className="text-4xl font-bold leading-tight tracking-tight text-fg">
+          <div className="glass glass-float max-w-md rounded-xl p-7">
+            <h2 className="text-4xl font-bold leading-tight tracking-tight text-gradient">
               A smarter way to move.
             </h2>
             <ul className="mt-6 space-y-3">
               {POINTS.map(({ icon: Icon, text }) => (
                 <li key={text} className="flex items-center gap-3 text-fg-secondary">
-                  <span className="grid size-9 shrink-0 place-items-center rounded-md bg-accent-subtle text-accent">
+                  <span className="grid size-9 shrink-0 place-items-center rounded-md bg-gradient-to-br from-accent/25 to-accent/5 text-accent ring-1 ring-accent/25">
                     <Icon className="size-4" aria-hidden />
                   </span>
                   {text}
@@ -49,9 +49,11 @@ export function AuthLayout() {
           </Link>
         </div>
         <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center py-10">
-          <PageTransition>
-            <Outlet />
-          </PageTransition>
+          <div className="panel rounded-xl border border-border bg-surface/80 p-6 shadow-raised backdrop-blur-xl sm:p-8">
+            <PageTransition>
+              <Outlet />
+            </PageTransition>
+          </div>
         </div>
       </main>
     </div>

@@ -33,15 +33,15 @@ const DEFAULT_CENTER: [number, number] = [77.5946, 12.9716] // Bengaluru, as [lo
 function markerElement(kind: MapMarker['kind']): HTMLElement {
   const el = document.createElement('div')
   el.setAttribute('aria-hidden', 'true')
-  const base = 'width:22px;height:22px;border:3px solid #08080a;box-shadow:0 2px 8px rgb(0 0 0 / .6);'
+  const base = 'width:22px;height:22px;border:3px solid #060709;box-shadow:0 2px 10px rgb(0 0 0 / .7);'
   if (kind === 'pickup') {
-    el.style.cssText = `${base}border-radius:50%;background:#f5f5f2;`
+    el.style.cssText = `${base}border-radius:50%;background:#f6f6f3;box-shadow:0 0 0 6px rgb(246 246 243 / .14),0 2px 10px rgb(0 0 0 / .7);`
   } else if (kind === 'dropoff') {
-    el.style.cssText = `${base}border-radius:6px;background:#e8c547;`
+    el.style.cssText = `${base}border-radius:6px;background:#e9c84a;box-shadow:0 0 0 6px rgb(233 200 74 / .18),0 2px 10px rgb(0 0 0 / .7);`
   } else if (kind === 'driver') {
-    el.style.cssText = `${base}border-radius:8px;background:#f5f5f2;outline:2px solid #e8c547;`
+    el.style.cssText = `${base}border-radius:8px;background:#f6f6f3;outline:2px solid #e9c84a;box-shadow:0 0 14px rgb(233 200 74 / .55);`
   } else {
-    el.style.cssText = `${base}border-radius:50%;background:#6aa8ff;`
+    el.style.cssText = `${base}border-radius:50%;background:#72aeff;box-shadow:0 0 0 6px rgb(114 174 255 / .18);`
   }
   return el
 }
@@ -74,11 +74,19 @@ export default function MapView({ markers, showRoute = false, onPick, className,
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right')
     map.on('load', () => {
       map.addSource('route', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
+      // A soft halo under the dashes makes the route read clearly on a dark map
+      map.addLayer({
+        id: 'route-halo',
+        type: 'line',
+        source: 'route',
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: { 'line-color': '#e9c84a', 'line-width': 12, 'line-opacity': 0.14, 'line-blur': 6 },
+      })
       map.addLayer({
         id: 'route-line',
         type: 'line',
         source: 'route',
-        paint: { 'line-color': '#e8c547', 'line-width': 4, 'line-dasharray': [1.5, 2] },
+        paint: { 'line-color': '#e9c84a', 'line-width': 4, 'line-dasharray': [1.5, 2] },
       })
       setReady(true)
     })
@@ -156,7 +164,7 @@ export default function MapView({ markers, showRoute = false, onPick, className,
       ref={container}
       role="application"
       aria-label={label}
-      className={cn('overflow-hidden rounded-lg border border-border bg-surface', className)}
+      className={cn('overflow-hidden rounded-xl border border-border bg-surface shadow-raised', className)}
     />
   )
 }

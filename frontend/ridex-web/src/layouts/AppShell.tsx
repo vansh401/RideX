@@ -1,6 +1,7 @@
 import { ChevronDown, LogOut, Menu, User as UserIcon } from 'lucide-react'
+import { motion } from 'motion/react'
 import { useState } from 'react'
-import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import type { Role } from '@/api/types'
 import { useAuth } from '@/auth/useAuth'
 import { Logo } from '@/components/brand/Logo'
@@ -49,6 +50,9 @@ const itemBase =
 
 function NavEntry({ item, showLabels }: { item: NavItem; showLabels: boolean }) {
   const Icon = item.icon
+  // The active state is computed here and a plain string class is passed down: a className FUNCTION would be
+  // turned into text when the tooltip wrapper (Radix asChild) merges class names.
+  const isActive = useLocation().pathname === item.to
   // In the icon rail (lg..xl) labels are hidden; the tooltip supplies the name
   const label = cn(showLabels ? 'inline' : 'hidden xl:inline')
 
@@ -69,21 +73,21 @@ function NavEntry({ item, showLabels }: { item: NavItem; showLabels: boolean }) 
       <NavLink
         to={item.to}
         end
-        className={({ isActive }) =>
-          cn(
-            itemBase,
-            isActive ? 'bg-accent-subtle text-accent' : 'text-fg-secondary hover:bg-elevated hover:text-fg',
-          )
-        }
+        className={cn(itemBase, isActive ? 'text-accent' : 'text-fg-secondary hover:bg-white/[0.05] hover:text-fg')}
       >
-        {({ isActive }) => (
-          <>
-            {/* Edge marker: the active state is not colour-only */}
-            {isActive && <span aria-hidden className="absolute inset-y-2 left-0 w-[3px] rounded-r bg-accent" />}
-            <Icon className="size-5 shrink-0" aria-hidden />
-            <span className={label}>{item.label}</span>
-          </>
+        {/* The pill slides between items; the edge marker keeps the state from being colour-only */}
+        {isActive && (
+          <motion.span
+            aria-hidden
+            layoutId={showLabels ? 'nav-active-drawer' : 'nav-active-rail'}
+            transition={{ type: 'spring', stiffness: 500, damping: 40 }}
+            className="absolute inset-0 rounded-md bg-accent-subtle shadow-[inset_0_1px_0_rgb(255_255_255/0.06)] ring-1 ring-accent/20"
+          >
+            <span className="absolute inset-y-2.5 left-0 w-[3px] rounded-r bg-accent shadow-[0_0_10px_var(--accent-glow)]" />
+          </motion.span>
         )}
+        <Icon className="relative size-5 shrink-0" aria-hidden />
+        <span className={cn('relative', label)}>{item.label}</span>
       </NavLink>
     </Tip>
   )
@@ -121,9 +125,9 @@ export function AppShell() {
   return (
     <RealtimeProvider>
     <TooltipProvider delayDuration={150}>
-      <div className="min-h-screen bg-canvas">
+      <div className="min-h-screen">
         {/* Desktop sidebar: labels at xl, icon rail at lg */}
-        <aside className="fixed inset-y-0 left-0 z-30 hidden w-[76px] flex-col border-r border-border bg-surface p-3 lg:flex xl:w-64">
+        <aside className="glass glass-float fixed inset-y-3 left-3 z-30 hidden w-[76px] flex-col rounded-xl p-3 lg:flex xl:w-64">
           <div className="mb-6 flex h-12 items-center px-1.5">
             <NavLink to="/" aria-label="RideX home">
               <span className="xl:hidden">
@@ -147,8 +151,8 @@ export function AppShell() {
           </button>
         </aside>
 
-        <div className="lg:pl-[76px] xl:pl-64">
-          <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-border bg-canvas/90 px-4 backdrop-blur sm:px-6">
+        <div className="lg:pl-[100px] xl:pl-[17.5rem]">
+          <header className="glass glass-float sticky top-3 z-20 mx-3 mt-3 flex h-16 items-center gap-3 rounded-xl px-4 sm:mx-6 sm:px-5 lg:mx-6">
             {/* Below lg the sidebar becomes a drawer */}
             <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
               <SheetTrigger asChild>
@@ -189,7 +193,7 @@ export function AppShell() {
                   className="flex min-h-11 items-center gap-2.5 rounded-md px-2 hover:bg-elevated"
                   aria-label="Account menu"
                 >
-                  <span className="grid size-9 place-items-center rounded-full bg-accent-subtle text-sm font-bold text-accent">
+                  <span className="grid size-9 place-items-center rounded-full bg-gradient-to-br from-accent/30 to-accent/5 text-sm font-bold text-accent ring-1 ring-accent/30">
                     {initials(user.fullName)}
                   </span>
                   <span className="hidden text-left sm:block">

@@ -45,7 +45,7 @@ export function RiderHome() {
       <ul className="flex flex-col gap-3">
         {data?.content.map((ride) => (
           <li key={ride.id}>
-            <Link to={`/rides/${ride.id}`} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-surface p-4 hover:border-fg-muted">
+            <Link to={`/rides/${ride.id}`} className="flex flex-wrap items-center justify-between gap-3 rounded-lg panel border border-border p-4 hover:border-fg-muted">
               <div className="min-w-0 flex-1">
                 <p className="truncate text-fg">{ride.dropoff.address}</p>
                 <p className="text-sm text-fg-muted">{formatDateTime(ride.requestedAt)}</p>

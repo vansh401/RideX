@@ -198,7 +198,7 @@ export function BookRidePage() {
             const spot = which === 'pickup' ? pickup : dropoff
             const active = target === which
             return (
-              <Card key={which} className={cn(active && 'ring-2 ring-accent/50')}>
+              <Card key={which} className={cn('transition-shadow duration-(--dur-base)', active && 'ring-2 ring-accent/50 shadow-glow')}>
                 <CardContent className="flex flex-col gap-3">
                   <div className="flex items-center justify-between gap-2">
                     <p className="flex items-center gap-2 font-semibold text-fg">
@@ -285,8 +285,8 @@ export function BookRidePage() {
                           aria-checked={selected}
                           onClick={() => setCategory(fare.category)}
                           className={cn(
-                            'flex items-center gap-4 rounded-md border p-3 text-left transition-colors',
-                            selected ? 'border-accent bg-accent-subtle' : 'border-border-strong hover:border-fg-muted',
+                            'flex items-center gap-4 rounded-md border p-3 text-left transition-[border-color,background-color,box-shadow,transform] duration-(--dur-base) active:scale-[0.99]',
+                            selected ? 'border-accent bg-accent-subtle shadow-glow' : 'border-border-strong bg-canvas/40 hover:border-fg-muted',
                           )}
                         >
                           <Icon className="size-6 text-accent" aria-hidden />
@@ -333,7 +333,7 @@ export function BookRidePage() {
           showRoute
           onPick={onMapPick}
           label="Map: tap to set the pickup or destination"
-          className="h-[28rem] lg:sticky lg:top-6 lg:h-[36rem]"
+          className="h-[28rem] lg:sticky lg:top-24 lg:h-[38rem]"
         />
       </div>
     </>

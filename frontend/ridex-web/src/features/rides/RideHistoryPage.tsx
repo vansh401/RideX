@@ -50,7 +50,7 @@ export function RideHistoryPage({ path = '/api/rides', eyebrow, title }: { path?
               <li key={ride.id}>
                 <Link
                   to={`/rides/${ride.id}`}
-                  className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-surface p-4 transition-colors hover:border-fg-muted"
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-lg panel border border-border p-4 transition-colors hover:border-fg-muted"
                 >
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-medium text-fg">{ride.pickup.address} → {ride.dropoff.address}</p>

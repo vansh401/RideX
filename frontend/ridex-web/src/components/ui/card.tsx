@@ -1,9 +1,21 @@
 import type { HTMLAttributes } from 'react'
 import { cn } from '@/lib/cn'
+import { useSpotlight } from '@/lib/useSpotlight'
 
-/** Elevation level 1: a bordered surface, no shadow. */
-export function Card({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('rounded-lg border border-border bg-surface', className)} {...props} />
+/** A glass window. Pass `interactive` for clickable cards: they lift, tilt a little and catch the pointer's light. */
+export function Card({
+  className,
+  interactive = false,
+  ...props
+}: HTMLAttributes<HTMLDivElement> & { interactive?: boolean }) {
+  const spotlight = useSpotlight()
+  return (
+    <div
+      className={cn('panel rounded-lg border border-border', interactive && 'lift', className)}
+      {...(interactive ? spotlight : {})}
+      {...props}
+    />
+  )
 }
 
 export function CardHeader({ className, ...props }: HTMLAttributes<HTMLDivElement>) {

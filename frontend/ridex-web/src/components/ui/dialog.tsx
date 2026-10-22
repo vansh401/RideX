@@ -17,11 +17,11 @@ export function DialogContent({
 }: Omit<ComponentProps<typeof DialogPrimitive.Content>, 'title'> & { title: string; description?: ReactNode }) {
   return (
     <DialogPrimitive.Portal>
-      <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-overlay animate-fade-in" />
+      <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-overlay backdrop-blur-sm animate-fade-in" />
       <DialogPrimitive.Content
         className={cn(
           'fixed left-1/2 top-1/2 z-50 w-[calc(100vw-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2',
-          'rounded-lg bg-surface p-6 shadow-modal animate-pop-in',
+          'panel rounded-xl bg-surface/95 p-6 shadow-modal backdrop-blur-xl animate-pop-in',
           className,
         )}
         {...props}

@@ -53,7 +53,13 @@ const ForbiddenPage = lazy(() => import('@/features/app/StatusPages').then((m) =
 
 function App() {
   return (
-    <Suspense fallback={<p className="grid min-h-screen place-items-center text-fg-muted">Loading…</p>}>
+    <Suspense
+      fallback={
+        <div role="status" aria-label="Loading" className="grid min-h-screen place-items-center">
+          <span className="size-10 animate-spin rounded-full border-2 border-accent/20 border-t-accent" />
+        </div>
+      }
+    >
       <Routes>
         {/* Marketing */}
         <Route element={<PublicLayout />}>

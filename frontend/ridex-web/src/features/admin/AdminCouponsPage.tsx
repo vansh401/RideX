@@ -101,7 +101,7 @@ export function AdminCouponsPage() {
           {data?.length === 0 && <EmptyState icon={Ticket} title="No offers yet" description="Create one on the left." />}
           <ul className="flex flex-col gap-3">
             {data?.map((c) => (
-              <li key={c.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-surface p-4">
+              <li key={c.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg panel border border-border p-4">
                 <div className="min-w-0">
                   <p className="flex items-center gap-2 font-semibold text-fg">
                     {c.code} <Badge tone={c.active ? 'success' : 'neutral'}>{c.active ? 'Active' : 'Off'}</Badge>

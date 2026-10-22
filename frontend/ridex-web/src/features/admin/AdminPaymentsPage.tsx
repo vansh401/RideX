@@ -40,7 +40,7 @@ export function AdminPaymentsPage() {
               <li key={p.id}>
                 <Link
                   to={`/rides/${p.rideId}`}
-                  className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-surface p-4 hover:border-fg-muted"
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-lg panel border border-border p-4 hover:border-fg-muted"
                 >
                   <div className="min-w-0">
                     <p className="tabular font-semibold text-fg">{formatINR(p.amount)}</p>

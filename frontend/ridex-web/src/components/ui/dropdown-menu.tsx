@@ -15,7 +15,7 @@ export function DropdownMenuContent({
       <MenuPrimitive.Content
         sideOffset={sideOffset}
         className={cn(
-          'z-50 min-w-48 rounded-md bg-elevated p-1.5 text-sm text-fg shadow-raised',
+          'glass glass-float z-50 min-w-48 rounded-md bg-elevated/80 p-1.5 text-sm text-fg',
           'animate-pop-in',
           className,
         )}

@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { TextField } from '@/components/ui/text-field'
+import { CHART, tooltipStyle } from '@/lib/chartTheme'
 import { formatDateTime } from '@/lib/format'
 import { dailyChartData, totalLag } from '@/lib/payments'
 import { usePolling } from '@/lib/usePolling'
@@ -91,13 +92,13 @@ export function AdminEventsPage() {
             <div className="h-64" role="img" aria-label="Bar chart of requested, completed and cancelled rides per day">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chart}>
-                  <CartesianGrid stroke="#2a2a30" vertical={false} />
-                  <XAxis dataKey="day" stroke="#8a8a93" fontSize={12} />
-                  <YAxis allowDecimals={false} stroke="#8a8a93" fontSize={12} />
-                  <Tooltip contentStyle={{ background: '#16161a', border: '1px solid #2a2a30', borderRadius: 8 }} cursor={{ fill: '#ffffff10' }} />
+                  <CartesianGrid stroke={CHART.grid} vertical={false} />
+                  <XAxis dataKey="day" stroke={CHART.axis} fontSize={12} />
+                  <YAxis allowDecimals={false} stroke={CHART.axis} fontSize={12} />
+                  <Tooltip contentStyle={tooltipStyle} cursor={{ fill: '#ffffff10' }} />
                   <Legend />
                   <Bar dataKey="requested" name="Requested" fill="#6aa8ff" radius={[6, 6, 0, 0]} />
-                  <Bar dataKey="completed" name="Completed" fill="#e8c547" radius={[6, 6, 0, 0]} />
+                  <Bar dataKey="completed" name="Completed" fill={CHART.accent} radius={[6, 6, 0, 0]} />
                   <Bar dataKey="cancelled" name="Cancelled" fill="#e5484d" radius={[6, 6, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>

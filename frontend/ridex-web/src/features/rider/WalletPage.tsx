@@ -80,7 +80,7 @@ export function WalletPage() {
             <>
               <ul className="flex flex-col gap-2">
                 {statement.data.content.map((e) => (
-                  <li key={e.id} className="flex items-center justify-between gap-3 rounded-lg border border-border bg-surface p-3">
+                  <li key={e.id} className="flex items-center justify-between gap-3 rounded-lg panel border border-border p-3">
                     <span className="flex min-w-0 items-center gap-3">
                       {e.amount >= 0 ? <ArrowDownLeft className="size-4 text-success" aria-hidden /> : <ArrowUpRight className="size-4 text-fg-muted" aria-hidden />}
                       <span className="min-w-0">

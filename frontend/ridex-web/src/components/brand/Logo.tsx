@@ -6,7 +6,7 @@ export function Logo({ className, showWordmark = true }: { className?: string; s
     <span className={cn('inline-flex items-center gap-2.5', className)}>
       <span
         aria-hidden
-        className="grid size-9 place-items-center rounded-md border border-accent/40 bg-accent-subtle shadow-neu"
+        className="grid size-9 place-items-center rounded-md border border-accent/40 bg-gradient-to-br from-accent/25 to-accent/5 shadow-neu"
       >
         <svg viewBox="0 0 24 24" className="size-5 text-accent" fill="none" stroke="currentColor" strokeWidth="2.2">
           <path d="M5 19c0-5 5-3 7-7s-1-6 3-7" strokeLinecap="round" />
