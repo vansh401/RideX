@@ -17,6 +17,8 @@ public interface UserRepository extends JpaRepository<User, UUID>, JpaSpecificat
 
     boolean existsByRole(Role role);
 
+    java.util.List<User> findByRole(Role role);
+
     long countByStatus(UserStatus status);
 
     @Query("select u.role, count(u) from User u group by u.role")

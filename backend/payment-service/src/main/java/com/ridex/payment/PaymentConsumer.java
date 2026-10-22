@@ -20,11 +20,14 @@ public class PaymentConsumer {
     private final EventCodec codec;
     private final ProcessedEvents processed;
     private final PaymentService payments;
+    private final com.ridex.payment.extras.CancellationFeeService cancellationFees;
 
-    public PaymentConsumer(EventCodec codec, ProcessedEvents processed, PaymentService payments) {
+    public PaymentConsumer(EventCodec codec, ProcessedEvents processed, PaymentService payments,
+                           com.ridex.payment.extras.CancellationFeeService cancellationFees) {
         this.codec = codec;
         this.processed = processed;
         this.payments = payments;
+        this.cancellationFees = cancellationFees;
     }
 
     @KafkaListener(topics = Topics.RIDE_EVENTS, groupId = GROUP)
@@ -34,6 +37,11 @@ public class PaymentConsumer {
             return;
         }
         RideEventData ride = codec.data(event, RideEventData.class);
+        if ("CANCELLED".equals(ride.to()) && "DRIVER_ARRIVED".equals(ride.from()) && "RIDER".equals(ride.actor()) && ride.driverUserId() != null) {
+            // The rider cancelled with the driver already at the pickup: a small compensation fee (from the wallet, if it holds enough)
+            processed.runOnce(GROUP, event.eventId(), () -> cancellationFees.onRiderCancelledAfterArrival(ride.rideId(), ride.riderUserId(), ride.driverUserId()));
+            return;
+        }
         if (!"RIDE_COMPLETED".equals(ride.to())) {
             return;
         }

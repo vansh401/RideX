@@ -10,10 +10,19 @@ export const emergencyContactSchema = z
   .object({
     name: z.string().trim().max(100, 'Use at most 100 characters'),
     phone: z.string().trim(),
+    // Optional: where the SOS alert and the live trip link are emailed
+    email: z.string().trim().max(160, 'Use at most 160 characters').optional(),
   })
   .superRefine((values, ctx) => {
     const hasName = values.name !== ''
     const hasPhone = values.phone !== ''
+    const email = values.email ?? ''
+    if (email !== '' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      ctx.addIssue({ code: 'custom', path: ['email'], message: 'Enter a valid email address' })
+    }
+    if (email !== '' && !hasName) {
+      ctx.addIssue({ code: 'custom', path: ['name'], message: 'Add a name for this contact' })
+    }
     if (hasName && !hasPhone) {
       ctx.addIssue({ code: 'custom', path: ['phone'], message: 'Add a phone number for this contact' })
     }

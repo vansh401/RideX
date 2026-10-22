@@ -39,6 +39,10 @@ public class IncentiveService {
     public record Tier(int trips, BigDecimal bonus) {
     }
 
+    /** Where a driver stands today: trips done, the tier they are working toward, and what is already guaranteed. */
+    public record Progress(LocalDate day, int tripsToday, List<Tier> tiers, Tier next, int tripsToNext, BigDecimal bonusSoFar) {
+    }
+
     public record Result(LocalDate day, int driversPaid, BigDecimal totalPaid) {
     }
 
@@ -92,6 +96,14 @@ public class IncentiveService {
         } catch (RuntimeException e) {
             log.error("The incentive run failed: {}", e.getClass().getSimpleName());
         }
+    }
+
+    public Progress progress(UUID driverUserId) {
+        LocalDate today = Instant.now().atZone(zone).toLocalDate();
+        List<UUID> account = jdbc.queryForList("select id from ledger_accounts where type = 'DRIVER_EARNINGS' and owner_id = ?", UUID.class, driverUserId);
+        int trips = account.isEmpty() ? 0 : earnings.tripsOn(account.get(0), today);
+        Tier next = tiers.stream().filter(t -> t.trips() > trips).findFirst().orElse(null);
+        return new Progress(today, trips, tiers, next, next == null ? 0 : next.trips() - trips, bonusFor(tiers, trips));
     }
 
     public Result payFor(LocalDate day) {

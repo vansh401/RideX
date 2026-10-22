@@ -6,7 +6,7 @@ distributed systems and DevOps.
 ## Stack
 Java 21 · Spring Boot 4 · PostgreSQL · Redis · Kafka · Flyway · Resilience4j · React + TypeScript · Docker + nginx + Kubernetes (kind, kustomize, HPA) · Micrometer, Prometheus, Grafana, OpenTelemetry, Jaeger · GitHub Actions
 
-## Architecture (after Phase 14)
+## Architecture (after Phase 15)
 
 One API gateway in front of a core application plus four extracted services, and a shared infrastructure library. Each service has its own database. Everything can run in Docker.
 
@@ -14,14 +14,14 @@ One API gateway in front of a core application plus four extracted services, and
 |---|---|---|
 | **web** (nginx, `frontend/ridex-web`) | 3000 (Docker) | serves the React app, forwards `/api` and `/ws` to the gateway |
 | **api-gateway** (`backend/api-gateway`) | 8000 | the only address the browser uses: routing, token check, rate limit, CORS, logging |
-| core (`backend/ridex-app`) | 8080 | auth, users, rides (scheduled, with stops), drivers, matching, surge measurement, complaints, ratings, WebSockets; issues tokens |
-| notification-service | 8081 | turns events into stored and live notifications |
-| payment-service | 8082 | wallet and double-entry ledger, coupons, refunds, driver earnings and incentives, card payments through a protected gateway |
+| core (`backend/ridex-app`) | 8080 | auth, users, rides (scheduled, with stops), drivers, matching, surge measurement, complaints, ratings, safety (SOS, shared trip link), chat, WebSockets; issues tokens |
+| notification-service | 8081 | turns events into stored and live notifications, and sends the important ones (receipts, refunds, complaint outcomes) as real email |
+| payment-service | 8082 | wallet and double-entry ledger, coupons, refunds, tips, receipts, driver earnings, incentives and payouts, referrals; online payments through Razorpay (or the test checkout) |
 | pricing-service | 8083 | the fare formula (stateless) |
 | analytics-service | 8084 | audit log, dead letters, consumer lag, admin report facts and charts, fraud signals |
 | platform (library) | | event contracts, outbox, idempotent consumers, JWT validation |
 
-Read: [service map](docs/service-map.md) · [microservices concepts](docs/microservices-concepts.md) · [gateway concepts](docs/gateway-concepts.md) · [docker concepts](docs/docker-concepts.md) · [phase 7 review](docs/phase-7-review.md) · [phase 8 review](docs/phase-8-review.md) · [phase 9 review](docs/phase-9-review.md) · [kubernetes concepts](docs/kubernetes-concepts.md) · [phase 10 review](docs/phase-10-review.md) · [event contracts](docs/event-contracts.md) · [money and ledger](docs/money-and-ledger-concepts.md) · [platform features](docs/platform-features-concepts.md) · [phase 14 review](docs/phase-14-review.md)
+Read: [service map](docs/service-map.md) · [microservices concepts](docs/microservices-concepts.md) · [gateway concepts](docs/gateway-concepts.md) · [docker concepts](docs/docker-concepts.md) · [phase 7 review](docs/phase-7-review.md) · [phase 8 review](docs/phase-8-review.md) · [phase 9 review](docs/phase-9-review.md) · [kubernetes concepts](docs/kubernetes-concepts.md) · [phase 10 review](docs/phase-10-review.md) · [event contracts](docs/event-contracts.md) · [money and ledger](docs/money-and-ledger-concepts.md) · [platform features](docs/platform-features-concepts.md) · [phase 14 review](docs/phase-14-review.md) · [phase 15 review](docs/phase-15-review.md) · [real payments and email setup](docs/payments-and-email-setup.md)
 
 ```mermaid
 flowchart LR
@@ -124,4 +124,4 @@ cd backend
 ```
 
 ## Status
-Phases 1 to 14 done: foundation, auth, rides and matching, Redis, WebSockets, Kafka and events, microservices, API gateway, Docker, Kubernetes, scaling and failure experiments, observability, CI/CD, and the product features (surge pricing, wallet and ledger, coupons, refunds, driver earnings and incentives, admin reports, complaints, scheduled rides and stops, fraud signals).
+Phases 1 to 15 done: foundation, auth, rides and matching, Redis, WebSockets, Kafka and events, microservices, API gateway, Docker, Kubernetes, scaling and failure experiments, observability, CI/CD, and the product features (surge pricing, wallet and ledger, coupons, refunds, driver earnings and incentives, admin reports, complaints, scheduled rides and stops, fraud signals), and the gap-closing phase (Razorpay-ready online payments, real SMTP email, SOS and trip sharing, chat, tips, receipts, payouts, referrals, admin finance screens). Free services only, no SMS. Not done on purpose: ride sharing in dispatch (see the phase 15 review).

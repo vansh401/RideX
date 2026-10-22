@@ -15,6 +15,7 @@ import { TextField } from '@/components/ui/text-field'
 import { formatINR } from '@/lib/format'
 import { CATEGORY_LABEL, formatDistance, secondsUntil } from '@/lib/rides'
 import { usePolling } from '@/lib/usePolling'
+import { BusyAreasCard } from './BusyAreasCard'
 import { useRealtime, useSubscription } from '@/realtime/useRealtime'
 
 const HEARTBEAT_MS = 5_000
@@ -291,6 +292,12 @@ export function DriverDashboard() {
 
         <RideMap markers={markers} label="Your location" className="h-72" />
       </div>
+
+      {approved && (
+        <div className="mt-6">
+          <BusyAreasCard />
+        </div>
+      )}
     </>
   )
 }

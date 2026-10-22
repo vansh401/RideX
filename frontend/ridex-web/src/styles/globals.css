@@ -409,3 +409,35 @@
 @keyframes route-flow {
   to { stroke-dashoffset: -28; }
 }
+
+/* Receipts print as plain black on white, without the aurora, navigation or buttons */
+@media print {
+  .aurora,
+  body::after,
+  aside,
+  header,
+  nav,
+  .no-print,
+  .route-bar {
+    display: none !important;
+  }
+  html,
+  body {
+    background: #fff !important;
+  }
+  .receipt-sheet,
+  .receipt-sheet * {
+    color: #000 !important;
+    background: #fff !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    border-color: #ccc !important;
+  }
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  div[class*='lg:pl-'] {
+    padding-left: 0 !important;
+  }
+}

@@ -67,6 +67,23 @@ public class WalletService {
         return new Wallet(balance.isEmpty() ? BigDecimal.ZERO.setScale(2) : balance.get(0), "INR");
     }
 
+    /** The rules every top-up obeys, however it is paid. */
+    public void checkTopUpAllowed(UUID userId, BigDecimal amount) {
+        if (amount == null || amount.scale() > 2 || amount.compareTo(minTopUp) < 0 || amount.compareTo(maxTopUp) > 0) {
+            throw new BadRequestException("A top-up is between " + minTopUp + " and " + maxTopUp + " (at most 2 decimals)");
+        }
+        if (wallet(userId).balance().add(amount).compareTo(maxBalance) > 0) {
+            throw new BadRequestException("A wallet can hold at most " + maxBalance);
+        }
+    }
+
+    /** Money that arrived from outside (a confirmed online payment) becomes wallet money. Safe to call twice with the same key. */
+    @Transactional
+    public void creditFromGateway(UUID userId, BigDecimal amount, String reference, String idempotencyKey, String description) {
+        ledger.post("TOPUP", reference, idempotencyKey, description,
+                List.of(new LedgerService.Leg(AccountType.GATEWAY_ID, amount.negate()), new LedgerService.Leg(accounts.walletOf(userId), amount)));
+    }
+
     @Transactional
     public Wallet topUp(UUID userId, BigDecimal amount, String idempotencyKey) {
         if (amount == null || amount.scale() > 2 || amount.compareTo(minTopUp) < 0 || amount.compareTo(maxTopUp) > 0) {

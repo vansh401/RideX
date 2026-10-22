@@ -12,10 +12,12 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { CHART, tooltipStyle } from '@/lib/chartTheme'
 import { formatDateTime, formatINR } from '@/lib/format'
 import { usePolling } from '@/lib/usePolling'
+import { IncentiveCard } from './IncentiveCard'
+import { PayoutsSection } from './PayoutsSection'
 
 /** What the driver has earned: today, the week, the month, a 30-day chart and the latest trips. */
 export function EarningsPage() {
-  const { data, error } = usePolling(async () => (await api.get<EarningsSummary>('/api/driver/earnings')).data, { intervalMs: 30000 })
+  const { data, error, refresh } = usePolling(async () => (await api.get<EarningsSummary>('/api/driver/earnings')).data, { intervalMs: 30000 })
 
   return (
     <>
@@ -32,6 +34,11 @@ export function EarningsPage() {
             <StatCard icon={Gift} label="Bonuses (30 days)" value={formatINR(data.bonuses30Days)} />
           </div>
           <p className="mt-3 text-sm text-fg-muted">Balance on your account: <span className="tabular font-semibold text-fg">{formatINR(data.balance)}</span></p>
+
+          <div className="mt-6 grid gap-4 lg:grid-cols-2">
+            <IncentiveCard />
+            <PayoutsSection balance={data.balance} onChanged={() => void refresh()} />
+          </div>
 
           <Card className="mt-6">
             <CardContent>

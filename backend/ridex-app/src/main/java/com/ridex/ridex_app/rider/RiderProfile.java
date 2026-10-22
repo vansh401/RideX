@@ -48,6 +48,9 @@ public class RiderProfile {
     @Column(name = "emergency_contact_phone")
     private String emergencyContactPhone;
 
+    @Column(name = "emergency_contact_email")
+    private String emergencyContactEmail;
+
     // One profile -> many places. Not owning (mappedBy): the foreign key lives on SavedPlace.
     // LAZY is the default for collections and is what we want; cascade + orphanRemoval make
     // "add to / remove from the list" save and delete rows automatically.
@@ -89,6 +92,12 @@ public class RiderProfile {
         this.emergencyContactName = hasName ? name.trim() : null;
         this.emergencyContactPhone = hasPhone ? phone.trim() : null;
     }
+
+    public void changeEmergencyContactEmail(String email) {
+        this.emergencyContactEmail = email == null || email.isBlank() ? null : email.trim();
+    }
+
+    public String getEmergencyContactEmail() { return emergencyContactEmail; }
 
     public SavedPlace addPlace(String label, String address, BigDecimal latitude, BigDecimal longitude) {
         if (savedPlaces.size() >= MAX_SAVED_PLACES) {

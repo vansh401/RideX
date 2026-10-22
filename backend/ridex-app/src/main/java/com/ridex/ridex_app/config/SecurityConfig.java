@@ -30,7 +30,8 @@ public class SecurityConfig {
             AccessTokenRevocations revocations,
             RateLimiter rateLimiter,
             RateLimitProperties rateLimitProperties,
-            @Qualifier("handlerExceptionResolver") HandlerExceptionResolver exceptionResolver)
+            @Qualifier("handlerExceptionResolver") HandlerExceptionResolver exceptionResolver,
+            @org.springframework.beans.factory.annotation.Value("${ridex.internal.service-token:}") String internalServiceToken)
             throws Exception {
 
         // Created with "new" on purpose: if it were a @Component, Spring Boot would also
@@ -63,6 +64,10 @@ public class SecurityConfig {
                         .requestMatchers("/ws/**").permitAll()
                         // API docs. Disable them in production (springdoc.*.enabled=false)
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+                        // Phase 15: a shared trip is read by anyone holding the (unguessable, expiring) link, so no login
+                        .requestMatchers(HttpMethod.GET, "/api/public/trips/*").permitAll()
+                        // Another service asks for a person's name and email (service token, not a user token)
+                        .requestMatchers("/internal/**").hasRole("SERVICE")
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/riders/**").hasRole("RIDER")
                         // Ride endpoints: roles are enforced HERE as well as with @PreAuthorize. Method
@@ -72,6 +77,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/rides/*/accept", "/api/rides/*/reject",
                                 "/api/rides/*/arrived", "/api/rides/*/start", "/api/rides/*/complete", "/api/rides/*/stops/next").hasRole("DRIVER")
                         .requestMatchers("/api/rides/*/cancel", "/api/rides/*/ratings").hasAnyRole("RIDER", "DRIVER")
+                        // Phase 15: safety and chat are for the two people on the ride
+                        .requestMatchers("/api/rides/*/share", "/api/rides/*/sos", "/api/rides/*/messages").hasAnyRole("RIDER", "DRIVER")
                         // Phase 14: complaints are filed by the two people on a ride; administrators handle them (/api/admin/** above)
                         .requestMatchers("/api/complaints", "/api/complaints/**").hasAnyRole("RIDER", "DRIVER")
                         .requestMatchers(HttpMethod.GET, "/api/rides", "/api/rides/current").hasAnyRole("RIDER", "DRIVER")
@@ -82,6 +89,8 @@ public class SecurityConfig {
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
                 // First of all: turn away abusive traffic before any real work happens
                 .addFilterBefore(rateLimitFilter, JwtAuthenticationFilter.class)
+                // Other services present the shared X-Service-Token (role SERVICE); an empty token switches this off
+                .addFilterBefore(new com.ridex.platform.security.ServiceTokenFilter(internalServiceToken), JwtAuthenticationFilter.class)
                 // Send 401/403 through our GlobalExceptionHandler so the JSON format is consistent
                 .exceptionHandling(exceptions -> exceptions
                         .authenticationEntryPoint((request, response, ex) ->

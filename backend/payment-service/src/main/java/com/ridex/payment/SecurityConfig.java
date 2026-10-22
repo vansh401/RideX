@@ -22,11 +22,18 @@ public class SecurityConfig {
                 .requestMatchers("/actuator/health/**", "/actuator/info", "/actuator/prometheus").permitAll()
                 // The pretend gateway stands for somebody else's server: it has its own rules (an Idempotency-Key), not our tokens
                 .requestMatchers("/mock-gateway/**").permitAll()
+                // The payment provider's server calls this: no token, but the body is signed and the signature is checked
+                .requestMatchers(HttpMethod.POST, "/api/payments/online/webhook").permitAll()
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.POST, "/api/payments/rides/*/retry").hasRole("RIDER")
                 .requestMatchers(HttpMethod.GET, "/api/payments/rides/*").hasAnyRole("RIDER", "DRIVER", "ADMIN")
                 // Phase 14: the rider's wallet and coupons, the driver's earnings (the id always comes from the token)
-                .requestMatchers("/api/wallet", "/api/wallet/**", "/api/coupons/*/preview").hasRole("RIDER")
+                .requestMatchers("/api/wallet", "/api/wallet/**", "/api/coupons/*/preview", "/api/coupons/offers").hasRole("RIDER")
+                // Phase 15: online payments, tips, referrals (riders); payouts and incentive progress (drivers); receipts (the parties of the ride)
+                .requestMatchers("/api/payments/online/**", "/api/referrals/**").hasRole("RIDER")
+                .requestMatchers(HttpMethod.POST, "/api/payments/rides/*/tip").hasRole("RIDER")
+                .requestMatchers(HttpMethod.GET, "/api/payments/rides/*/receipt").hasAnyRole("RIDER", "DRIVER", "ADMIN")
+                .requestMatchers("/api/driver/payouts", "/api/driver/incentives").hasRole("DRIVER")
                 .requestMatchers(HttpMethod.GET, "/api/driver/earnings").hasRole("DRIVER")
                 .anyRequest().denyAll());
         return http.build();

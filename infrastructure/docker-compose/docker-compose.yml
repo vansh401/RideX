@@ -155,15 +155,22 @@ services:
     environment:
       <<: *java-environment
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/ridex_db
-      SPRING_MAIL_HOST: mailpit
+      # Email: with nothing set, mail goes to Mailpit (http://localhost:8025). For REAL email put MAIL_HOST, MAIL_PORT, MAIL_USERNAME,
+      # MAIL_AUTH, MAIL_STARTTLS and MAIL_FROM in the git-ignored .env, and the password in secrets/MAIL_PASSWORD (see docs/payments-and-email-setup.md).
+      MAIL_HOST: ${MAIL_HOST:-mailpit}
+      MAIL_PORT: ${MAIL_PORT:-1025}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_AUTH: ${MAIL_AUTH:-false}
+      MAIL_STARTTLS: ${MAIL_STARTTLS:-false}
+      MAIL_FROM: ${MAIL_FROM:-no-reply@ridex.local}
       PRICING_URL: http://pricing:8083
       # Links in e-mails, and the websites allowed to open a WebSocket
-      RIDEX_FRONTEND_BASE_URL: http://localhost:3000
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
       RIDEX_WEBSOCKET_ALLOWED_ORIGINS: http://localhost:3000,http://localhost:5173
       # First admin: created only if none exists. Put them in the git-ignored .env file, never in this file.
       ADMIN_EMAIL: ${ADMIN_EMAIL:-}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
-    secrets: [DB_PASSWORD, SERVICE_TOKEN]
+    secrets: [DB_PASSWORD, SERVICE_TOKEN, MAIL_PASSWORD]
     volumes:
       - core_data:/app/data           # the token signing key and uploaded driver documents must survive a restart
     networks: [internal]
@@ -186,7 +193,18 @@ services:
     environment:
       <<: *java-environment
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/notification_db
-    secrets: [DB_PASSWORD]
+      # Email: with nothing set, mail goes to Mailpit (http://localhost:8025). For REAL email put MAIL_HOST, MAIL_PORT, MAIL_USERNAME,
+      # MAIL_AUTH, MAIL_STARTTLS and MAIL_FROM in the git-ignored .env, and the password in secrets/MAIL_PASSWORD (see docs/payments-and-email-setup.md).
+      MAIL_HOST: ${MAIL_HOST:-mailpit}
+      MAIL_PORT: ${MAIL_PORT:-1025}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_AUTH: ${MAIL_AUTH:-false}
+      MAIL_STARTTLS: ${MAIL_STARTTLS:-false}
+      MAIL_FROM: ${MAIL_FROM:-no-reply@ridex.local}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      # The one lookup this service makes: a person's name and email, asked of the core with the shared service token
+      CORE_URL: http://core:8080
+    secrets: [DB_PASSWORD, SERVICE_TOKEN, MAIL_PASSWORD]
     networks: [internal]
     mem_limit: 384m
     depends_on:
@@ -207,7 +225,10 @@ services:
     environment:
       <<: *java-environment
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/payment_db
-    secrets: [DB_PASSWORD]
+      # Online payments: with no key the TEST checkout is used. Razorpay TEST keys (rzp_test_...) are free: key id here (it is public),
+      # the secrets in secrets/RAZORPAY_KEY_SECRET and secrets/RAZORPAY_WEBHOOK_SECRET.
+      RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-}
+    secrets: [DB_PASSWORD, RAZORPAY_KEY_SECRET, RAZORPAY_WEBHOOK_SECRET]
     networks: [internal]
     mem_limit: 384m
     depends_on:
@@ -335,3 +356,10 @@ secrets:
     file: ./secrets/DB_PASSWORD
   SERVICE_TOKEN:
     file: ./secrets/SERVICE_TOKEN
+  # Phase 15. Empty files mean "not configured" (docker-init.ps1 creates them empty); fill in your own values, never commit them.
+  MAIL_PASSWORD:
+    file: ./secrets/MAIL_PASSWORD
+  RAZORPAY_KEY_SECRET:
+    file: ./secrets/RAZORPAY_KEY_SECRET
+  RAZORPAY_WEBHOOK_SECRET:
+    file: ./secrets/RAZORPAY_WEBHOOK_SECRET

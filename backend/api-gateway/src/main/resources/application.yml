@@ -84,7 +84,7 @@ spring:
               order: 20
               predicates:
                 # Phase 14: the wallet, coupons, driver earnings and the finance admin pages live with the money
-                - Path=/api/payments/**,/api/admin/payments/**,/api/wallet/**,/api/coupons/**,/api/driver/earnings,/api/admin/coupons/**,/api/admin/refunds/**,/api/admin/ledger/**,/api/admin/incentives/**
+                - Path=/api/payments/**,/api/admin/payments/**,/api/wallet/**,/api/coupons/**,/api/driver/earnings,/api/admin/coupons/**,/api/admin/refunds/**,/api/admin/ledger/**,/api/admin/incentives/**,/api/referrals/**,/api/driver/payouts,/api/driver/incentives,/api/admin/payouts/**
               filters: *general-limit
 
             - id: pricing-service
@@ -131,6 +131,9 @@ ridex:
       - "*:/api/auth/**"
       - "GET:/api/health"
       - "GET:/.well-known/**"
+      # Phase 15: a shared trip is followed with an unguessable link, and the payment provider's server calls the webhook (its body is signed)
+      - "GET:/api/public/trips/*"
+      - "POST:/api/payments/online/webhook"
       - "*:/ws/**"
       - "GET:/v3/api-docs/**"
       - "GET:/swagger-ui/**"

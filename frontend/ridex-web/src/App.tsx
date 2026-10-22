@@ -48,6 +48,13 @@ const AdminCouponsPage = lazy(() => import('@/features/admin/AdminCouponsPage').
 const AdminComplaintsPage = lazy(() => import('@/features/admin/AdminComplaintsPage').then((m) => ({ default: m.AdminComplaintsPage })))
 const AdminAnalyticsPage = lazy(() => import('@/features/admin/AdminAnalyticsPage').then((m) => ({ default: m.AdminAnalyticsPage })))
 const AdminFraudPage = lazy(() => import('@/features/admin/AdminFraudPage').then((m) => ({ default: m.AdminFraudPage })))
+const OffersPage = lazy(() => import('@/features/rider/OffersPage').then((m) => ({ default: m.OffersPage })))
+const HelpPage = lazy(() => import('@/features/app/HelpPage').then((m) => ({ default: m.HelpPage })))
+const ReceiptPage = lazy(() => import('@/features/rides/ReceiptPage').then((m) => ({ default: m.ReceiptPage })))
+const TripPage = lazy(() => import('@/features/rides/TripPage').then((m) => ({ default: m.TripPage })))
+const AdminSafetyPage = lazy(() => import('@/features/admin/AdminSafetyPage').then((m) => ({ default: m.AdminSafetyPage })))
+const AdminPayoutsPage = lazy(() => import('@/features/admin/AdminPayoutsPage').then((m) => ({ default: m.AdminPayoutsPage })))
+const AdminFinancePage = lazy(() => import('@/features/admin/AdminFinancePage').then((m) => ({ default: m.AdminFinancePage })))
 const AdminEventsPage = lazy(() => import('@/features/admin/AdminEventsPage').then((m) => ({ default: m.AdminEventsPage })))
 const ForbiddenPage = lazy(() => import('@/features/app/StatusPages').then((m) => ({ default: m.ForbiddenPage })))
 
@@ -66,6 +73,9 @@ function App() {
           <Route path="/" element={<LandingPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
+
+        {/* A shared trip: followed with an unguessable link, no login */}
+        <Route path="/trip/:token" element={<TripPage />} />
 
         {/* Authentication screens */}
         <Route element={<AuthLayout />}>
@@ -89,11 +99,16 @@ function App() {
             <Route path="/notifications" element={<NotificationsPage />} />
             <Route path="/forbidden" element={<ForbiddenPage />} />
             <Route path="/rides/:rideId" element={<RideDetailPage />} />
+            <Route path="/receipt/:rideId" element={<ReceiptPage />} />
+            <Route element={<ProtectedRoute roles={['RIDER', 'DRIVER']} />}>
+              <Route path="/help" element={<HelpPage />} />
+            </Route>
 
             <Route element={<ProtectedRoute roles={['RIDER']} />}>
               <Route path="/rider" element={<RiderHome />} />
               <Route path="/rider/book" element={<BookRidePage />} />
               <Route path="/rider/wallet" element={<WalletPage />} />
+              <Route path="/rider/offers" element={<OffersPage />} />
               <Route path="/rider/rides" element={<RideHistoryPage eyebrow="Rider" title="My rides" />} />
             </Route>
             <Route element={<ProtectedRoute roles={['DRIVER']} />}>
@@ -113,6 +128,9 @@ function App() {
               <Route path="/admin/complaints" element={<AdminComplaintsPage />} />
               <Route path="/admin/reports" element={<AdminAnalyticsPage />} />
               <Route path="/admin/fraud" element={<AdminFraudPage />} />
+              <Route path="/admin/safety" element={<AdminSafetyPage />} />
+              <Route path="/admin/payouts" element={<AdminPayoutsPage />} />
+              <Route path="/admin/finance" element={<AdminFinancePage />} />
               <Route path="/admin/events" element={<AdminEventsPage />} />
               <Route path="/admin/vehicles" element={<AdminVehiclesPage />} />
               <Route path="/admin/rides" element={<RideHistoryPage path="/api/admin/rides" eyebrow="Admin" title="All rides" />} />
