@@ -8,7 +8,7 @@
 # ---------------------------------------------------------------------------------------------------------------------------
 # Stage 1: build the static site
 # ---------------------------------------------------------------------------------------------------------------------------
-FROM node:22-alpine AS build
+FROM node:25-alpine AS build
 WORKDIR /app
 
 # Dependencies first: this layer is rebuilt only when package.json / package-lock.json change, not on every source edit
