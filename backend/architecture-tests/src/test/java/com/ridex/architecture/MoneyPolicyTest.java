@@ -61,6 +61,40 @@ class MoneyPolicyTest {
     }
 
     @Test
+    void moneyFromTheOutsideEntersTheWalletOnlyThroughTheSignedConfirmationOrTheTestCard() throws IOException {
+        // creditFromGateway turns "the provider says it was paid" into wallet money. Anything that calls it must have verified a signature first,
+        // which only OnlinePaymentService does (WalletService itself is the definition, and the old server-side card top-up is its own path).
+        try (var files = Files.walk(PAYMENT.resolve("java"))) {
+            var callers = files.filter(p -> p.toString().endsWith(".java"))
+                    .filter(p -> !p.getFileName().toString().equals("WalletService.java") && !p.getFileName().toString().equals("OnlinePaymentService.java"))
+                    .filter(p -> {
+                        try {
+                            return Files.readString(p).contains("creditFromGateway(");
+                        } catch (IOException e) {
+                            throw new IllegalStateException(e);
+                        }
+                    })
+                    .map(Path::toString).toList();
+            assertThat(callers).as("only the verified online-payment path may credit a wallet from outside").isEmpty();
+        }
+    }
+
+    @Test
+    void thePaymentProviderSecretsAreNeverWrittenToALogOrAnEvent() throws IOException {
+        try (var files = Files.walk(PAYMENT.resolve("java/com/ridex/payment/online"))) {
+            var offenders = files.filter(p -> p.toString().endsWith(".java")).filter(p -> {
+                try {
+                    // a logger call that mentions a secret, a signature, or the key would leak it
+                    return Pattern.compile("log\\.(info|warn|error|debug)\\([^;]*(keySecret|webhookSecret|signature|rawBody|body)", Pattern.CASE_INSENSITIVE).matcher(Files.readString(p)).find();
+                } catch (IOException e) {
+                    throw new IllegalStateException(e);
+                }
+            }).map(Path::toString).toList();
+            assertThat(offenders).as("never log a secret, a signature or a webhook body").isEmpty();
+        }
+    }
+
+    @Test
     void complaintsReachThePaymentServiceByEventNotByACall() throws IOException {
         try (var files = Files.walk(Path.of("..", "ridex-app", "src", "main", "java", "com", "ridex", "ridex_app", "complaint"))) {
             var offenders = files.filter(p -> p.toString().endsWith(".java")).filter(p -> {

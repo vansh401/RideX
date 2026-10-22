@@ -46,6 +46,26 @@ class GatewayRoutingAndSecurityTest extends GatewayTestBase {
     }
 
     @Test
+    void thePhase15PathsGoToTheServicesThatOwnThem() {
+        String token = rider();
+
+        for (String path : new String[] {"/api/payments/online/config", "/api/referrals/me", "/api/driver/payouts", "/api/driver/incentives", "/api/admin/payouts",
+                "/api/coupons/offers", "/api/payments/rides/00000000-0000-0000-0000-000000000001/receipt"}) {
+            assertThat(get(path, token).<String>json("$.service")).as(path).isEqualTo("payment");
+        }
+        for (String path : new String[] {"/api/rides/00000000-0000-0000-0000-000000000001/messages", "/api/admin/sos", "/api/drivers/surge-zones"}) {
+            assertThat(get(path, token).<String>json("$.service")).as(path).isEqualTo("core");
+        }
+    }
+
+    @Test
+    void aSharedTripIsPublicButNothingNextToItIs() {
+        assertThat(get("/api/public/trips/some-unguessable-token", null).<String>json("$.service")).as("followed without a login").isEqualTo("core");
+        assertThat(get("/api/public/other", null).status()).as("only the trip link is public").isEqualTo(401);
+        assertThat(get("/api/rides/00000000-0000-0000-0000-000000000001/messages", null).status()).as("chat needs a login").isEqualTo(401);
+    }
+
+    @Test
     void everythingElseGoesToTheCore() {
         String token = rider();
 

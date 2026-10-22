@@ -56,6 +56,21 @@ describe('emergencyContactSchema', () => {
   it('rejects something that is not a phone number', () => {
     expect(emergencyContactSchema.safeParse({ name: 'Meera', phone: '12345' }).success).toBe(false)
   })
+
+  it('takes an optional email for SOS alerts and checks its shape', () => {
+    const ok = { name: 'Meera Nair', phone: '+919811122233', email: 'meera@example.com' }
+    expect(emergencyContactSchema.safeParse(ok).success).toBe(true)
+    expect(emergencyContactSchema.safeParse({ ...ok, email: '' }).success).toBe(true)
+    const bad = emergencyContactSchema.safeParse({ ...ok, email: 'not-an-email' })
+    expect(bad.success).toBe(false)
+    expect(bad.error?.issues[0]?.path).toEqual(['email'])
+  })
+
+  it('an email alone is not a contact: it needs a name', () => {
+    const result = emergencyContactSchema.safeParse({ name: '', phone: '', email: 'meera@example.com' })
+    expect(result.success).toBe(false)
+    expect(result.error?.issues.some((i) => i.path[0] === 'name')).toBe(true)
+  })
 })
 
 describe('licenceSchema', () => {

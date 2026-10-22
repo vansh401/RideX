@@ -39,6 +39,9 @@ configMapGenerator:
     literals:
       - SPRING_MAIL_HOST=smtp.example.com
       - SPRING_MAIL_PORT=587
+      - MAIL_AUTH=true
+      - MAIL_STARTTLS=true
+      - MAIL_FROM=no-reply@ridex.example.com
       - RIDEX_FRONTEND_BASE_URL=https://ridex.example.com
       - RIDEX_WEBSOCKET_ALLOWED_ORIGINS=https://ridex.example.com
       - GATEWAY_ALLOWED_ORIGINS=https://ridex.example.com

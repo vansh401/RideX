@@ -16,7 +16,7 @@ import {
 import { Link } from 'react-router-dom'
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { api } from '@/api/client'
-import type { AdminStats, PageResponse, Ride } from '@/api/types'
+import type { AdminStats, PageResponse, Ride, SosAlert } from '@/api/types'
 import { PageHeader } from '@/components/brand/PageHeader'
 import { RideStatusBadge } from '@/components/brand/StatusBadge'
 import { StatCard } from '@/components/brand/StatCard'
@@ -92,6 +92,7 @@ export function AdminOverview() {
   const hours = usePolling(() => optional(async () => (await api.get<Hour[]>('/api/admin/analytics/hours?days=7')).data), poll)
   const rides = usePolling(() => optional(async () => (await api.get<PageResponse<Ride>>('/api/admin/rides?size=30')).data), poll)
   const complaints = usePolling(() => optional(async () => (await api.get<PageResponse<unknown>>('/api/admin/complaints?status=OPEN&size=1')).data), poll)
+  const sos = usePolling(() => optional(async () => (await api.get<PageResponse<SosAlert>>('/api/admin/sos?status=OPEN&size=3')).data), { intervalMs: 10000 })
   const fraud = usePolling(() => optional(async () => (await api.get<RuleSummary[]>('/api/admin/fraud/summary')).data), poll)
 
   const s = stats.data
@@ -195,6 +196,16 @@ export function AdminOverview() {
         <Card className="min-w-0">
           <CardContent className="p-5">
             <p className="mb-3 font-semibold text-fg">Needs attention</p>
+            {sos.data && sos.data.content.length > 0 && (
+              <Link to="/admin/safety" className="mb-3 block rounded-md border border-danger/40 bg-danger/10 px-3.5 py-3 text-sm text-fg hover:bg-danger/15" role="alert">
+                <span className="flex items-center gap-2 font-semibold text-danger">
+                  <ShieldAlert className="size-4" aria-hidden /> {sos.data.totalElements} open SOS alert{sos.data.totalElements === 1 ? '' : 's'}
+                </span>
+                <span className="mt-1 block text-fg-secondary">
+                  {sos.data.content.map((a) => a.raisedByName).join(', ')} need{sos.data.totalElements === 1 ? 's' : ''} help. Open the alert.
+                </span>
+              </Link>
+            )}
             <div className="flex flex-col gap-2.5">
               <AttentionRow icon={UserCheck} label="Drivers awaiting approval" count={s?.pendingDriverApplications ?? null} to="/admin/drivers" tone="border-warning/25 bg-warning/10" />
               <AttentionRow icon={LifeBuoy} label="Open complaints" count={complaints.data ? complaints.data.totalElements : null} to="/admin/complaints" tone="border-danger/25 bg-danger/10" />
@@ -215,7 +226,8 @@ export function AdminOverview() {
               <QuickLink to="/admin/drivers" icon={UserCheck} label="Review driver applications" />
               <QuickLink to="/admin/coupons" icon={Ticket} label="Manage offers" />
               <QuickLink to="/admin/reports" icon={BarChart3} label="Open full reports" />
-              <QuickLink to="/admin/payments" icon={Wallet} label="Payments and refunds" />
+              <QuickLink to="/admin/payouts" icon={Wallet} label="Driver payouts" />
+              <QuickLink to="/admin/finance" icon={BarChart3} label="Finance and ledger" />
             </div>
           </CardContent>
         </Card>

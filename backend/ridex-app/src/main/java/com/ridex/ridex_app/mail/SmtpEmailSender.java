@@ -36,6 +36,16 @@ public class SmtpEmailSender implements EmailSender {
     }
 
     @Override
+    public void sendNotice(String toEmail, String subject, String text) {
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom(from);
+        message.setTo(toEmail);
+        message.setSubject(subject);
+        message.setText(text);
+        mailSender.send(message);
+    }
+
+    @Override
     public void sendPasswordResetEmail(String toEmail, String fullName, String resetUrl) {
         SimpleMailMessage message = new SimpleMailMessage();
         message.setFrom(from);

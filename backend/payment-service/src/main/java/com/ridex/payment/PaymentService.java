@@ -59,15 +59,18 @@ public class PaymentService {
     private final LedgerAccounts accounts;
     private final CouponService coupons;
     private final EarningsService earnings;
+    private final com.ridex.payment.extras.ReferralService referrals;
     private final BigDecimal commissionRate;
 
     public PaymentService(PaymentRepository repository, PaymentGateway gateway, OutboxService outbox, GatewayProperties gatewayProperties,
                           MeterRegistry metrics, LedgerService ledger, LedgerAccounts accounts, CouponService coupons, EarningsService earnings,
+                          com.ridex.payment.extras.ReferralService referrals,
                           @Value("${ridex.payments.commission-rate:0.20}") BigDecimal commissionRate) {
         this.ledger = ledger;
         this.accounts = accounts;
         this.coupons = coupons;
         this.earnings = earnings;
+        this.referrals = referrals;
         this.commissionRate = commissionRate;
         this.repository = repository;
         this.gateway = gateway;
@@ -206,7 +209,8 @@ public class PaymentService {
         metrics.counter("ridex.payments", "outcome", "succeeded").increment();
         log.info("Payment succeeded for attempt {} ({})", payment.getAttempts(), method);   // no amounts, no card or bank data
         publish(payment, EventEnvelope.PAYMENT_SUCCEEDED);
-        earnings.forgetAfterCommit(payment.getDriverUserId());   // the driver's cached earnings are out of date now
+        earnings.forgetAfterCommit(payment.getDriverUserId());
+        referrals.rewardOnFirstPaidRide(payment.getRiderUserId());   // a referred rider's first paid ride rewards both sides, once   // the driver's cached earnings are out of date now
     }
 
     /**

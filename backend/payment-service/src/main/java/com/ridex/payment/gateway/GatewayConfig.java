@@ -59,7 +59,10 @@ public class GatewayConfig {
 
     @Bean
     PaymentGateway paymentGateway(GatewayProperties p, CircuitBreaker circuitBreaker, Retry retry, Bulkhead bulkhead,
-                                  ObservationRegistry observations) {
+                                  ObservationRegistry observations, com.ridex.payment.online.CheckoutProvider checkout) {
+        if (!checkout.canChargeFromServer()) {
+            return new WalletOnlyGateway();   // a real provider cannot be charged from our server: the rider pays in its checkout window
+        }
         JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(
                 HttpClient.newBuilder().connectTimeout(Duration.ofMillis(p.connectTimeoutMs())).build());
         factory.setReadTimeout(Duration.ofMillis(p.readTimeoutMs()));   // the TIMEOUT protection

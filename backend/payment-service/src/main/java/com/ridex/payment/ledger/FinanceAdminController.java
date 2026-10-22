@@ -34,7 +34,7 @@ public class FinanceAdminController {
     @GetMapping("/api/admin/ledger/summary")
     public Map<String, BigDecimal> summary() {
         Map<String, BigDecimal> result = new java.util.LinkedHashMap<>();
-        for (String type : List.of("GATEWAY", "REVENUE", "PROMO", "INCENTIVES")) {
+        for (String type : List.of("GATEWAY", "REVENUE", "PROMO", "INCENTIVES", "PAYOUT_HOLD", "ADJUSTMENT")) {
             result.put(type, jdbc.queryForObject("select balance from ledger_accounts where type = ? and owner_id is null", BigDecimal.class, type));
         }
         result.put("USER_WALLETS_TOTAL", jdbc.queryForObject("select coalesce(sum(balance), 0) from ledger_accounts where type = 'USER_WALLET'", BigDecimal.class));

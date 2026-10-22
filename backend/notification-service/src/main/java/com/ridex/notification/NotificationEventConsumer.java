@@ -35,14 +35,17 @@ public class NotificationEventConsumer {
     private final EventCodec codec;
     private final ProcessedEvents processed;
     private final NotificationService notifications;
+    private final com.ridex.notification.mail.EmailNotifier emails;
 
-    public NotificationEventConsumer(EventCodec codec, ProcessedEvents processed, NotificationService notifications) {
+    public NotificationEventConsumer(EventCodec codec, ProcessedEvents processed, NotificationService notifications,
+                                     com.ridex.notification.mail.EmailNotifier emails) {
         this.codec = codec;
         this.processed = processed;
         this.notifications = notifications;
+        this.emails = emails;
     }
 
-    @KafkaListener(topics = {Topics.RIDE_EVENTS, Topics.PAYMENT_EVENTS, Topics.DRIVER_EVENTS}, groupId = GROUP)
+    @KafkaListener(topics = {Topics.RIDE_EVENTS, Topics.PAYMENT_EVENTS, Topics.DRIVER_EVENTS, Topics.COMPLAINT_EVENTS}, groupId = GROUP)
     public void onEvent(ConsumerRecord<String, String> record) {
         EventEnvelope event = codec.parse(record.value());
         switch (event.type()) {
@@ -52,11 +55,32 @@ public class NotificationEventConsumer {
             }
             case EventEnvelope.PAYMENT_SUCCEEDED, EventEnvelope.PAYMENT_FAILED -> {
                 PaymentEventData data = codec.data(event, PaymentEventData.class);
-                processed.runOnce(GROUP, event.eventId(), () -> paymentChanged(event.type(), data));
+                // The email goes out AFTER the notification is saved and committed, and only the first time this event is seen
+                if (processed.runOnce(GROUP, event.eventId(), () -> paymentChanged(event.type(), data))) {
+                    if (EventEnvelope.PAYMENT_SUCCEEDED.equals(event.type())) {
+                        emails.paymentSucceeded(data);
+                    } else {
+                        emails.paymentFailed(data);
+                    }
+                }
+            }
+            case EventEnvelope.PAYMENT_REFUNDED -> {
+                PaymentEventData data = codec.data(event, PaymentEventData.class);
+                if (processed.runOnce(GROUP, event.eventId(), () -> { })) {
+                    emails.refunded(data);   // refunds have no in-app type yet: the email is the message
+                }
+            }
+            case EventEnvelope.COMPLAINT_RESOLVED -> {
+                com.ridex.platform.contracts.ComplaintEventData data = codec.data(event, com.ridex.platform.contracts.ComplaintEventData.class);
+                if (processed.runOnce(GROUP, event.eventId(), () -> { })) {
+                    emails.complaintResolved(data);
+                }
             }
             case EventEnvelope.DRIVER_APPLICATION_REVIEWED -> {
                 DriverReviewedEventData data = codec.data(event, DriverReviewedEventData.class);
-                processed.runOnce(GROUP, event.eventId(), () -> driverReviewed(data));
+                if (processed.runOnce(GROUP, event.eventId(), () -> driverReviewed(data))) {
+                    emails.driverReviewed(data);
+                }
             }
             default -> {
                 // an event type this consumer does not care about (or a newer one): ignore it

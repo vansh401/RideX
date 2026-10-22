@@ -45,6 +45,7 @@ public class RiderProfileService {
         userService.getActiveUser(userId);   // the token may be stale; the database decides
         RiderProfile profile = load(userId);
         profile.changeEmergencyContact(request.emergencyContactName(), request.emergencyContactPhone());
+        profile.changeEmergencyContactEmail(request.emergencyContactName() == null || request.emergencyContactName().isBlank() ? null : request.emergencyContactEmail());
         return RiderProfileResponse.from(profile);
     }
 

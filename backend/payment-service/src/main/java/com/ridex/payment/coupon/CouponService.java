@@ -48,6 +48,11 @@ public class CouponService {
                          boolean active) {
     }
 
+    /** What a rider sees when browsing offers. */
+    public record Offer(String code, String description, String discountType, BigDecimal value, BigDecimal maxDiscount, BigDecimal minFare,
+                        Instant validUntil, int usesLeft) {
+    }
+
     public record NewCoupon(String code, String description, String discountType, BigDecimal value, BigDecimal maxDiscount, BigDecimal minFare,
                             Instant validFrom, Instant validUntil, Integer maxTotalUses, Integer perUserLimit) {
     }
@@ -104,6 +109,27 @@ public class CouponService {
     // ------------------------------------------------------------------ for riders
 
     /** What would this coupon give on this fare? Nothing is counted or locked: it is only a preview. */
+    @Transactional(readOnly = true)
+    public List<Offer> offersFor(UUID userId) {
+        return jdbc.query("""
+                select c.code, c.description, c.discount_type, c.value, c.max_discount, c.min_fare, c.valid_until,
+                       c.per_user_limit - coalesce((select count(*) from coupon_redemptions r where r.coupon_id = c.id and r.user_id = ?), 0) as uses_left
+                from coupons c
+                where c.listed and c.active and c.valid_from <= now() and c.valid_until > now()
+                  and (c.max_total_uses is null or c.used_count < c.max_total_uses)
+                order by c.valid_until
+                """, (rs, n) -> new Offer(rs.getString("code"), rs.getString("description"), rs.getString("discount_type"), rs.getBigDecimal("value"),
+                rs.getBigDecimal("max_discount"), rs.getBigDecimal("min_fare"), rs.getTimestamp("valid_until").toInstant(), rs.getInt("uses_left")), userId)
+                .stream().filter(o -> o.usesLeft() > 0).toList();
+    }
+
+    @Transactional
+    public void setListed(UUID id, boolean listed) {
+        if (jdbc.update("update coupons set listed = ? where id = ?", listed, id) == 0) {
+            throw new com.ridex.platform.web.ResourceNotFoundException("Coupon not found");
+        }
+    }
+
     @Transactional(readOnly = true)
     public Evaluation preview(String code, UUID userId, BigDecimal fare) {
         String normalised = normalise(code);

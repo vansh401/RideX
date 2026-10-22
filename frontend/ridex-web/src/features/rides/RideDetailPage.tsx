@@ -4,7 +4,7 @@ import { Link, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { api } from '@/api/client'
 import { toFriendlyError } from '@/api/errors'
-import type { DriverPosition, LiveRideUpdate, Ride, TimelineEntry } from '@/api/types'
+import type { DriverPosition, LiveRideUpdate, Ride, RideStatus, TimelineEntry } from '@/api/types'
 import { useAuth } from '@/auth/useAuth'
 import { ConfirmDialog } from '@/components/brand/ConfirmDialog'
 import { PageHeader } from '@/components/brand/PageHeader'
@@ -30,8 +30,13 @@ import { FareBreakdown } from './FareBreakdown'
 import { RideProgress } from './RideProgress'
 import { PaymentCard } from './PaymentCard'
 import { RatingForm } from './RatingForm'
+import { ChatPanel } from './ChatPanel'
 import { ComplaintSection } from './ComplaintSection'
+import { SafetyPanel } from './SafetyPanel'
 import { RatingValue } from './StarRating'
+
+/** Chat opens once a driver has accepted, and stays for a short while after the trip. */
+const CHAT_OPEN: RideStatus[] = ['DRIVER_ACCEPTED', 'DRIVER_ARRIVED', 'RIDE_STARTED', 'RIDE_COMPLETED']
 
 /** One ride, for whoever is looking at it. The server decides what each role may see and do. */
 export function RideDetailPage() {
@@ -296,6 +301,12 @@ export function RideDetailPage() {
             </div>
           )}
 
+          {(role === 'RIDER' || role === 'DRIVER') && active && <SafetyPanel rideId={ride.id} />}
+
+          {(role === 'RIDER' || role === 'DRIVER') && other && CHAT_OPEN.includes(ride.status) && (
+            <ChatPanel rideId={ride.id} otherName={other.fullName.split(' ')[0]} />
+          )}
+
           {canCancel && (
             <Button variant="danger" onClick={() => setCancelOpen(true)}>Cancel ride</Button>
           )}
@@ -316,7 +327,11 @@ export function RideDetailPage() {
         open={cancelOpen}
         onOpenChange={setCancelOpen}
         title="Cancel this ride?"
-        description="This cannot be undone."
+        description={
+          role === 'RIDER' && ride.status === 'DRIVER_ARRIVED'
+            ? 'Your driver is already at the pickup, so a small cancellation fee is taken from your wallet if it holds enough. This cannot be undone.'
+            : 'This cannot be undone.'
+        }
         confirmLabel="Cancel ride"
         danger
         askReason

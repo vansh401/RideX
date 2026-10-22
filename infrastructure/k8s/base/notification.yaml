@@ -84,6 +84,7 @@ spec:
           volumeMounts:
             - {name: tmp, mountPath: /tmp}
             - {name: secrets, mountPath: /run/secrets, readOnly: true}
+            - {name: integrations, mountPath: /run/integrations, readOnly: true}
       volumes:
         - name: tmp
           emptyDir: {sizeLimit: 64Mi}
@@ -95,6 +96,16 @@ spec:
             defaultMode: 0440
             items:
               - {key: DB_PASSWORD, path: DB_PASSWORD}
+              - {key: SERVICE_TOKEN, path: SERVICE_TOKEN}   # the one lookup it makes: a name and email from the core
+        # Optional (appended LAST so the volume positions the overlays patch do not move): the real-email / Razorpay secrets this service needs.
+        # If the secret does not exist the pod still starts and the defaults apply (the test checkout, Mailpit); create it to switch them on.
+        - name: integrations
+          secret:
+            secretName: ridex-integrations
+            optional: true
+            defaultMode: 0440
+            items:
+              - {key: MAIL_PASSWORD, path: MAIL_PASSWORD}
 ---
 apiVersion: v1
 kind: Service

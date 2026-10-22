@@ -10,13 +10,16 @@ public record RiderProfileResponse(
         List<SavedPlaceResponse> savedPlaces
 ) {
     /** null in the parent record when no contact is set */
-    public record EmergencyContact(String name, String phone) {
+    public record EmergencyContact(String name, String phone, String email) {
+        public EmergencyContact(String name, String phone) {
+            this(name, phone, null);
+        }
     }
 
     public static RiderProfileResponse from(RiderProfile profile) {
         EmergencyContact contact = profile.getEmergencyContactName() == null
                 ? null
-                : new EmergencyContact(profile.getEmergencyContactName(), profile.getEmergencyContactPhone());
+                : new EmergencyContact(profile.getEmergencyContactName(), profile.getEmergencyContactPhone(), profile.getEmergencyContactEmail());
         return new RiderProfileResponse(
                 profile.getId(), contact,
                 profile.getSavedPlaces().stream().map(SavedPlaceResponse::from).toList());

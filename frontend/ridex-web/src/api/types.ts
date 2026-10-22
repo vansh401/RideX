@@ -47,7 +47,7 @@ export interface SavedPlace {
 
 export interface RiderProfile {
   id: string
-  emergencyContact: { name: string; phone: string } | null
+  emergencyContact: { name: string; phone: string; email?: string | null } | null
   savedPlaces: SavedPlace[]
 }
 
@@ -312,6 +312,10 @@ export interface Payment {
   attempts: number
   failureReason: string | null
   gatewayReference: string | null
+  discount?: number
+  method?: string | null
+  couponCode?: string | null
+  refundedAmount?: number
   createdAt: string
   updatedAt: string
 }
@@ -488,4 +492,156 @@ export interface FraudSignal {
   status: 'NEW' | 'CONFIRMED' | 'DISMISSED'
   createdAt: string
   reviewedAt: string | null
+}
+
+// ---------------------------------------------------------------------------------------------
+// Phase 15: online payments, tips, receipts, referrals, payouts, safety, chat
+
+export interface OnlineConfig {
+  provider: 'STRIPE' | 'RAZORPAY' | 'MOCK'
+  publicKey: string
+}
+
+export interface OnlineOrder {
+  id: string
+  provider: 'STRIPE' | 'RAZORPAY' | 'MOCK'
+  publicKey: string
+  orderId: string
+  /** Set for a hosted checkout (Stripe): the page the rider is sent to. */
+  checkoutUrl?: string | null
+  amount: number
+  currency: string
+  purpose: 'TOPUP' | 'RIDE'
+  rideId: string | null
+}
+
+export interface Receipt {
+  number: string
+  rideId: string
+  issuedAt: string
+  currency: string
+  fare: number
+  discount: number
+  couponCode: string | null
+  paid: number
+  tip: number | null
+  refunded: number
+  method: string | null
+  status: string
+}
+
+export interface Offer {
+  code: string
+  description: string | null
+  discountType: 'PERCENT' | 'FLAT'
+  value: number
+  maxDiscount: number | null
+  minFare: number | null
+  validUntil: string
+  usesLeft: number
+}
+
+export interface ReferralSummary {
+  code: string
+  reward: number
+  invited: number
+  rewarded: number
+  appliedCode: string | null
+  rewardPending: boolean
+}
+
+export interface IncentiveProgress {
+  day: string
+  tripsToday: number
+  tiers: { trips: number; bonus: number }[]
+  next: { trips: number; bonus: number } | null
+  tripsToNext: number
+  bonusSoFar: number
+}
+
+export type PayoutStatus = 'REQUESTED' | 'PAID' | 'REJECTED'
+
+export interface Payout {
+  id: string
+  driverUserId: string
+  amount: number
+  upiId: string
+  status: PayoutStatus
+  requestedAt: string
+  decidedAt: string | null
+  note: string | null
+  reference: string | null
+}
+
+export interface ShareLink {
+  token: string
+  url: string
+  expiresAt: string
+}
+
+export interface TripView {
+  status: RideStatus
+  driverFirstName: string | null
+  vehicle: { description: string; registrationNumber: string } | null
+  pickupAddress: string
+  dropoffAddress: string
+  pickupLatitude: number
+  pickupLongitude: number
+  dropoffLatitude: number
+  dropoffLongitude: number
+  position: { latitude: number; longitude: number; updatedAt: string | null } | null
+  expiresAt: string
+}
+
+export interface SosAlert {
+  id: string
+  rideId: string
+  raisedByName: string
+  raisedByRole: 'RIDER' | 'DRIVER'
+  raisedByPhone: string | null
+  pickupAddress: string
+  dropoffAddress: string
+  latitude: number | null
+  longitude: number | null
+  status: 'OPEN' | 'ACKNOWLEDGED' | 'RESOLVED'
+  note: string | null
+  createdAt: string
+  handledAt: string | null
+}
+
+export interface ChatMessage {
+  id: string
+  senderRole: 'RIDER' | 'DRIVER'
+  body: string
+  createdAt: string
+  mine: boolean
+}
+
+export interface SurgeZone {
+  zone: string
+  multiplier: number
+  latitude: number
+  longitude: number
+  radiusKm: number
+}
+
+export interface LedgerIntegrity {
+  ok: boolean
+  sumOfAllBalances: number
+  accountsOutOfStep: string[]
+}
+
+export interface RefundRecord {
+  id: string
+  paymentId: string
+  rideId: string
+  userId: string
+  amount: number
+  reason: string | null
+  source: string
+  destination: string
+  status: string
+  attempts: number
+  failureReason: string | null
+  createdAt: string
 }

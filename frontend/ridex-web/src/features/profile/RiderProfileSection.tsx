@@ -38,6 +38,7 @@ function EmergencyContactCard({
     defaultValues: {
       name: profile.emergencyContact?.name ?? '',
       phone: profile.emergencyContact?.phone ?? '',
+      email: profile.emergencyContact?.email ?? '',
     },
   })
 
@@ -48,9 +49,10 @@ function EmergencyContactCard({
       const { data } = await api.put<RiderProfile>('/api/riders/me', {
         emergencyContactName: cleared ? null : values.name,
         emergencyContactPhone: cleared ? null : values.phone,
+        emergencyContactEmail: cleared || !values.email ? null : values.email,
       })
       onChange(data)
-      reset({ name: data.emergencyContact?.name ?? '', phone: data.emergencyContact?.phone ?? '' })
+      reset({ name: data.emergencyContact?.name ?? '', phone: data.emergencyContact?.phone ?? '', email: data.emergencyContact?.email ?? '' })
       toast.success(cleared ? 'Emergency contact removed' : 'Emergency contact saved')
     } catch (err) {
       setFormError(toFriendlyError(err).message)
@@ -61,7 +63,7 @@ function EmergencyContactCard({
     <Card>
       <CardHeader>
         <CardTitle>Emergency contact</CardTitle>
-        <CardDescription>Someone we can reach if there is a problem on a trip. Leave both fields empty to remove it.</CardDescription>
+        <CardDescription>Someone we can reach if there is a problem on a trip. If you add an email, they get a live link to follow your trip when you press SOS. Leave the fields empty to remove the contact.</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit(save)} noValidate className="flex flex-col gap-5">
@@ -75,6 +77,15 @@ function EmergencyContactCard({
               autoComplete="off"
               error={errors.phone?.message}
               {...register('phone')}
+            />
+            <TextField
+              label="Email (optional)"
+              type="email"
+              inputMode="email"
+              autoComplete="off"
+              hint="Used only for SOS alerts"
+              error={errors.email?.message}
+              {...register('email')}
             />
           </div>
           <div>

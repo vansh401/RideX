@@ -300,6 +300,15 @@ class KubernetesPolicyTest {
             for (Object v : list(podSpec(workload).get("volumes"))) {
                 Map<String, Object> secret = map(map(v).get("secret"));
                 if (!secret.isEmpty()) {
+                    if ("ridex-integrations".equals(secret.get("secretName"))) {
+                        // Phase 15: the real-email and Razorpay secrets. OPTIONAL (a pod must start without them) and only named keys
+                        assertThat(secret.get("optional")).as(name(workload) + ": the integrations secret must be optional").isEqualTo(true);
+                        for (Object item : list(secret.get("items"))) {
+                            assertThat((String) map(item).get("key")).as(name(workload)).isIn("MAIL_PASSWORD", "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "RAZORPAY_KEY_SECRET", "RAZORPAY_WEBHOOK_SECRET");
+                        }
+                        assertThat(list(secret.get("items"))).as(name(workload) + ": list the keys, never mount the whole secret").isNotEmpty();
+                        continue;
+                    }
                     assertThat(secret.get("secretName")).as(name(workload)).isEqualTo("ridex-secrets");
                     for (Object item : list(secret.get("items"))) {
                         assertThat((String) map(item).get("key")).as(name(workload)).isIn("DB_PASSWORD", "SERVICE_TOKEN");

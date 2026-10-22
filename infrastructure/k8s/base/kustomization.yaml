@@ -39,12 +39,15 @@ configMapGenerator:
       - PRICING_URL=http://pricing:8083
       - ANALYTICS_URL=http://analytics:8084
       # Reads /run/secrets/* as configuration (DB_PASSWORD, SERVICE_TOKEN), exactly as in Docker Compose
-      - SPRING_CONFIG_IMPORT=optional:configtree:/run/secrets/
+      - SPRING_CONFIG_IMPORT=optional:configtree:/run/secrets/,optional:configtree:/run/integrations/
       # Addresses allowed to tell the gateway who the real client is: the ingress controller pod address (private ranges)
       - GATEWAY_TRUSTED_PROXIES=172[.](1[6-9]|2[0-9]|3[01])[.].*|10[.].*|192[.]168[.].*
       # --- the settings that differ per environment (overlays replace these) ---
       - SPRING_MAIL_HOST=mailpit
       - SPRING_MAIL_PORT=1025
+      # Real email also needs MAIL_USERNAME / MAIL_AUTH=true / MAIL_STARTTLS=true / MAIL_FROM (see docs/payments-and-email-setup.md); the password goes in ridex-integrations
+      - STRIPE_PUBLISHABLE_KEY=
+      - RAZORPAY_KEY_ID=
       - RIDEX_FRONTEND_BASE_URL=http://ridex.localhost:8088
       - RIDEX_WEBSOCKET_ALLOWED_ORIGINS=http://ridex.localhost:8088
       - GATEWAY_ALLOWED_ORIGINS=http://ridex.localhost:8088
