@@ -16,7 +16,7 @@
 # ---------------------------------------------------------------------------------------------------------------------------
 # Stage 1: build
 # ---------------------------------------------------------------------------------------------------------------------------
-FROM maven:3.9-eclipse-temurin-21 AS build
+FROM maven:3.9-eclipse-temurin-26 AS build
 WORKDIR /workspace
 
 # Keep Maven's memory modest: Docker Desktop on a laptop often has only 4 GB for everything
