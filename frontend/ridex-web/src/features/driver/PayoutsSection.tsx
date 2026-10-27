@@ -59,7 +59,7 @@ export function PayoutsSection({ balance, onChanged }: { balance: number; onChan
         {data && data.length > 0 && (
           <ul className="flex flex-col gap-2">
             {data.map((p) => (
-              <li key={p.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-white/[0.04] px-3 py-2.5 text-sm">
+              <li key={p.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-fg/[0.04] px-3 py-2.5 text-sm">
                 <span className="text-fg-secondary">
                   <span className="tabular font-semibold text-fg">{formatINR(p.amount)}</span> to {p.upiId} · {formatDateTime(p.requestedAt)}
                   {p.reference && <span className="block text-xs text-fg-muted">Reference {p.reference}</span>}

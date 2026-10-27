@@ -5,6 +5,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import type { Role } from '@/api/types'
 import { useAuth } from '@/auth/useAuth'
 import { Logo } from '@/components/brand/Logo'
+import { ThemeToggle } from '@/components/brand/ThemeToggle'
 import { PageTransition } from '@/components/brand/PageTransition'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -73,7 +74,7 @@ function NavEntry({ item, showLabels }: { item: NavItem; showLabels: boolean }) 
       <NavLink
         to={item.to}
         end
-        className={cn(itemBase, isActive ? 'text-accent' : 'text-fg-secondary hover:bg-white/[0.05] hover:text-fg')}
+        className={cn(itemBase, isActive ? 'text-accent' : 'text-fg-secondary hover:bg-fg/[0.05] hover:text-fg')}
       >
         {/* The pill slides between items; the edge marker keeps the state from being colour-only */}
         {isActive && (
@@ -81,7 +82,7 @@ function NavEntry({ item, showLabels }: { item: NavItem; showLabels: boolean }) 
             aria-hidden
             layoutId={showLabels ? 'nav-active-drawer' : 'nav-active-rail'}
             transition={{ type: 'spring', stiffness: 500, damping: 40 }}
-            className="absolute inset-0 rounded-md bg-accent-subtle shadow-[inset_0_1px_0_rgb(255_255_255/0.06)] ring-1 ring-accent/20"
+            className="absolute inset-0 rounded-md bg-accent-subtle shadow-[inset_0_1px_0_var(--edge-highlight)] ring-1 ring-accent/20"
           >
             <span className="absolute inset-y-2.5 left-0 w-[3px] rounded-r bg-accent shadow-[0_0_10px_var(--accent-glow)]" />
           </motion.span>
@@ -184,6 +185,7 @@ export function AppShell() {
             </div>
 
             <ConnectionBadge />
+            <ThemeToggle />
             <NotificationBell />
 
             <DropdownMenu>

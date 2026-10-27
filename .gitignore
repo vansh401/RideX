@@ -35,3 +35,7 @@ infrastructure/k8s/overlays/dev/secrets/
 
 # Local tools downloaded by the Kubernetes scripts (kind)
 tools/
+
+# Local agent skills
+.claude/skills/
+skills-lock.json

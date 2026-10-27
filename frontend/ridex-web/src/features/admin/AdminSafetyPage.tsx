@@ -67,7 +67,7 @@ function AlertCard({ alert, onChanged }: { alert: SosAlert; onChanged: () => voi
             Open the ride
           </a>
         </p>
-        {alert.note && <p className="rounded bg-white/[0.05] px-3 py-2 text-sm text-fg-secondary">Note: {alert.note}</p>}
+        {alert.note && <p className="rounded bg-fg/[0.05] px-3 py-2 text-sm text-fg-secondary">Note: {alert.note}</p>}
         {alert.status !== 'RESOLVED' && (
           <div className="flex flex-wrap items-end gap-2">
             <div className="min-w-48 flex-1">

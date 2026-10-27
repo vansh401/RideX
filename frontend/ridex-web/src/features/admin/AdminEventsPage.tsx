@@ -95,7 +95,7 @@ export function AdminEventsPage() {
                   <CartesianGrid stroke={CHART.grid} vertical={false} />
                   <XAxis dataKey="day" stroke={CHART.axis} fontSize={12} />
                   <YAxis allowDecimals={false} stroke={CHART.axis} fontSize={12} />
-                  <Tooltip contentStyle={tooltipStyle} cursor={{ fill: '#ffffff10' }} />
+                  <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'rgb(128 128 128 / 0.12)' }} />
                   <Legend />
                   <Bar dataKey="requested" name="Requested" fill="#6aa8ff" radius={[6, 6, 0, 0]} />
                   <Bar dataKey="completed" name="Completed" fill={CHART.accent} radius={[6, 6, 0, 0]} />

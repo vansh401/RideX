@@ -66,7 +66,7 @@ function AttentionRow({ icon: Icon, label, count, to, tone }: { icon: LucideIcon
       <span className="flex items-center gap-3 text-sm font-medium text-fg">
         <Icon className="size-4 shrink-0" aria-hidden /> {label}
       </span>
-      <span className="tabular rounded-full bg-black/25 px-2.5 py-0.5 text-sm font-bold text-fg">{count ?? '–'}</span>
+      <span className="tabular rounded-full bg-inset px-2.5 py-0.5 text-sm font-bold text-fg">{count ?? '–'}</span>
     </Link>
   )
 }
@@ -154,7 +154,7 @@ export function AdminOverview() {
                   <CartesianGrid stroke={CHART.grid} vertical={false} />
                   <XAxis dataKey="label" stroke={CHART.axis} fontSize={11} tickLine={false} axisLine={false} interval={2} />
                   <YAxis allowDecimals={false} stroke={CHART.axis} fontSize={12} tickLine={false} axisLine={false} />
-                  <Tooltip contentStyle={tooltipStyle} cursor={{ fill: '#ffffff10' }} />
+                  <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'rgb(128 128 128 / 0.12)' }} />
                   <Bar dataKey="rides" name="Rides" fill={CHART.secondary} radius={[6, 6, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
@@ -174,7 +174,7 @@ export function AdminOverview() {
               <ul className="flex flex-col gap-2">
                 {ongoing.map((ride) => (
                   <li key={ride.id}>
-                    <Link to={`/rides/${ride.id}`} className="flex items-center justify-between gap-3 rounded-md bg-white/[0.04] px-3 py-2.5 hover:bg-white/[0.08]">
+                    <Link to={`/rides/${ride.id}`} className="flex items-center justify-between gap-3 rounded-md bg-fg/[0.04] px-3 py-2.5 hover:bg-fg/[0.08]">
                       <span className="min-w-0">
                         <span className="block truncate text-sm font-semibold text-fg">{ride.rider.fullName}</span>
                         <span className="block truncate text-xs text-fg-muted">

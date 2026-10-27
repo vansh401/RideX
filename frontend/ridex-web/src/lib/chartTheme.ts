@@ -2,16 +2,16 @@ import type { CSSProperties } from 'react'
 
 // One look for every chart: gold bars, hairline grid, and a glass tooltip that matches the panels.
 export const CHART = {
-  accent: '#e9c84a',
-  secondary: '#72aeff',
-  grid: '#1d2127',
-  axis: '#8e9096',
+  accent: 'var(--chart-accent)',
+  secondary: 'var(--chart-blue)',
+  grid: 'var(--chart-grid)',
+  axis: 'var(--chart-axis)',
 } as const
 
 export const tooltipStyle: CSSProperties = {
-  background: 'rgb(18 21 26 / 0.92)',
-  border: '1px solid rgb(255 255 255 / 0.12)',
+  background: 'var(--chart-tooltip)',
+  border: '1px solid var(--border-strong)',
   borderRadius: 12,
-  color: '#f6f6f3',
-  boxShadow: '0 12px 32px rgb(0 0 0 / 0.5)',
+  color: 'var(--text-primary)',
+  boxShadow: 'var(--sh-float)',
 }

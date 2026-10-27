@@ -4,15 +4,20 @@
  * RideX design tokens: the ONLY place raw colours, radii, shadows and timings are defined.
  * Components use the Tailwind utilities generated from @theme below (bg-surface, text-fg,
  * border-border, rounded-lg, shadow-raised ...). See docs/frontend-design-spec.md.
- * The app is dark-only by design.
  *
- * Visual language ("Midnight Gold"): graphite surfaces layered by lightness, one warm gold accent
- * (the RideX identity), a cool blue reserved for routes and information, hairline translucent
- * borders, and a soft top-edge highlight that makes panels feel lit from above. Glass is used for
- * floating UI (navigation, map panels, menus); everything else is opaque for legibility.
+ * TWO THEMES, one system. The theme is the data-theme attribute on <html> (set before first paint by
+ * a tiny script in index.html, changed by ThemeToggle, remembered in localStorage):
+ *
+ *   "Ivory & Ink" (light, the default): warm ivory, cream glass, near-black ink, deep bronze-gold for
+ *       accents and buttons, serif headlines. Quiet, editorial, expensive.
+ *   "Midnight" (dark): graphite surfaces, frosted glass over a drifting aurora, bright gold.
+ *
+ * Every colour a component can show comes from a variable below, so a component never needs to know
+ * which theme is active. Text contrast is >= 4.5:1 on the surfaces it is used on, in both themes.
  */
 
-:root {
+:root,
+:root[data-theme='dark'] {
   color-scheme: dark;
 
   /* Surfaces: each step is a little lighter, so depth reads without heavy shadows */
@@ -20,7 +25,7 @@
   --bg-surface: #0d0f12;
   --bg-elevated: #15181d;
   --bg-overlay: rgb(10 12 15 / 0.66);
-  --bg-glass: rgb(255 255 255 / 0.055);
+  --bg-inset: rgb(0 0 0 / 0.28);
   --glass-edge: rgb(255 255 255 / 0.16);
 
   /* Borders: hairlines of light */
@@ -47,6 +52,58 @@
   --danger: #ff6b6b;
   --info: #72aeff;
 
+  /* Windows (cards) and floating glass */
+  --panel-fill: rgb(16 19 24 / 0.5);
+  --panel-sheen: linear-gradient(155deg, rgb(255 255 255 / 0.085), rgb(255 255 255 / 0.02) 45%, rgb(255 255 255 / 0.035));
+  --panel-spot: rgb(255 255 255 / 0.1);
+  --panel-top: rgb(255 255 255 / 0.22);
+  --panel-bottom: rgb(0 0 0 / 0.35);
+  --panel-drop: 0 28px 70px -28px rgb(0 0 0 / 0.75);
+  --glass-fill: rgb(20 23 29 / 0.42);
+  --glass-sheen: linear-gradient(155deg, rgb(255 255 255 / 0.1), rgb(255 255 255 / 0.02) 55%);
+  --glass-bottom: rgb(0 0 0 / 0.3);
+  --lift-ring: rgb(233 200 74 / 0.18);
+  --lift-drop: 0 36px 80px -24px rgb(0 0 0 / 0.85);
+
+  /* Elevation tokens used by shadow-* utilities */
+  --sh-raised: 0 12px 32px rgb(0 0 0 / 0.5), 0 0 0 1px var(--border-subtle), inset 0 1px 0 var(--edge-highlight);
+  --sh-modal: 0 32px 80px rgb(0 0 0 / 0.7), 0 0 0 1px var(--border-strong), inset 0 1px 0 var(--edge-highlight);
+  --sh-float: 0 18px 48px rgb(0 0 0 / 0.55), 0 2px 8px rgb(0 0 0 / 0.35);
+  --sh-glow: 0 0 0 1px rgb(233 200 74 / 0.35), 0 8px 28px var(--accent-glow);
+  --sh-neu: 4px 4px 12px rgb(0 0 0 / 0.55), -2px -2px 8px rgb(255 255 255 / 0.035), inset 0 1px 0 rgb(255 255 255 / 0.05);
+  --sh-neu-inset: inset 2px 3px 8px rgb(0 0 0 / 0.55), inset -1px -1px 4px rgb(255 255 255 / 0.025);
+  --neu-fill: linear-gradient(145deg, rgb(255 255 255 / 0.07), rgb(255 255 255 / 0.015));
+
+  /* Buttons: a lit top edge and a small contact shadow */
+  --btn-hi: rgb(255 255 255 / 0.45);
+  --btn-lo: rgb(0 0 0 / 0.4);
+
+  /* Living background */
+  --aurora-1: rgb(233 200 74 / 0.6);
+  --aurora-2: rgb(88 130 255 / 0.5);
+  --aurora-3: rgb(150 90 255 / 0.42);
+  --aurora-opacity: 0.95;
+  --aurora-vignette: rgb(6 7 9 / 0.42);
+  --grain-opacity: 0.022;
+
+  /* Small things */
+  --tg-from: #ffffff;
+  --tg-to: #b9bbb6;
+  --tga-from: #fff1b0;
+  --tga-mid: var(--accent);
+  --tga-to: #d19a1c;
+  --skeleton-a: rgb(255 255 255 / 0.05);
+  --skeleton-b: rgb(255 255 255 / 0.13);
+  --scroll-thumb: rgb(255 255 255 / 0.16);
+  --option-bg: #14171c;
+  --option-fg: #f6f6f3;
+  --option-off: #8e9096;
+  --chart-grid: #1d2127;
+  --chart-axis: #8e9096;
+  --chart-accent: #e9c84a;
+  --chart-blue: #72aeff;
+  --chart-tooltip: rgb(18 21 26 / 0.92);
+
   /* Motion */
   --dur-fast: 120ms;
   --dur-base: 200ms;
@@ -57,14 +114,97 @@
   --ease-exit: cubic-bezier(0.4, 0, 1, 1);
 }
 
+/* ------------------------------------------------------------------------------------------------
+ * IVORY & INK (light). Warm paper, cream glass, ink text, bronze-gold accent.
+ * Accent text (#8a6410) is 5.8:1 on the cream surface; the ivory text on an accent button is 5.6:1.
+ * ---------------------------------------------------------------------------------------------- */
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  --bg-base: #f4efe6;
+  --bg-surface: #fffdf9;
+  --bg-elevated: #ffffff;
+  --bg-overlay: rgb(244 239 230 / 0.72);
+  --bg-inset: rgb(60 44 12 / 0.055);
+  --glass-edge: rgb(60 44 12 / 0.11);
+
+  --border-subtle: rgb(60 44 12 / 0.1);
+  --border-strong: rgb(60 44 12 / 0.2);
+  --edge-highlight: rgb(255 255 255 / 0.9);
+
+  --text-primary: #16130d;
+  --text-secondary: #4b4538;
+  --text-muted: #6e6759;
+
+  --accent: #8a6410;
+  --accent-hover: #9c7415;
+  --accent-pressed: #70500b;
+  --accent-subtle: rgb(138 100 16 / 0.1);
+  --accent-glow: rgb(138 100 16 / 0.26);
+  --on-accent: #fffaf0;
+
+  --success: #1d7a4a;
+  --warning: #a8520a;
+  --danger: #c0352c;
+  --info: #2559a8;
+
+  --panel-fill: rgb(255 253 249 / 0.74);
+  --panel-sheen: linear-gradient(155deg, rgb(255 255 255 / 0.75), rgb(255 255 255 / 0.12) 50%, rgb(255 255 255 / 0.4));
+  --panel-spot: rgb(255 255 255 / 0.7);
+  --panel-top: rgb(255 255 255 / 0.95);
+  --panel-bottom: rgb(60 44 12 / 0.05);
+  --panel-drop: 0 22px 50px -26px rgb(70 48 8 / 0.34), 0 1px 3px rgb(70 48 8 / 0.06);
+  --glass-fill: rgb(255 253 249 / 0.6);
+  --glass-sheen: linear-gradient(155deg, rgb(255 255 255 / 0.7), rgb(255 255 255 / 0.15) 55%);
+  --glass-bottom: rgb(60 44 12 / 0.06);
+  --lift-ring: rgb(138 100 16 / 0.28);
+  --lift-drop: 0 30px 60px -24px rgb(70 48 8 / 0.42);
+
+  --sh-raised: 0 14px 34px -14px rgb(70 48 8 / 0.3), 0 0 0 1px var(--border-subtle), inset 0 1px 0 var(--edge-highlight);
+  --sh-modal: 0 40px 90px -24px rgb(50 34 6 / 0.5), 0 0 0 1px var(--border-strong), inset 0 1px 0 var(--edge-highlight);
+  --sh-float: 0 20px 50px -18px rgb(70 48 8 / 0.34), 0 2px 8px rgb(70 48 8 / 0.08);
+  --sh-glow: 0 0 0 1px rgb(138 100 16 / 0.4), 0 8px 26px var(--accent-glow);
+  --sh-neu: 6px 6px 14px rgb(100 72 20 / 0.16), -5px -5px 12px rgb(255 255 255 / 0.95), inset 0 1px 0 rgb(255 255 255 / 0.8);
+  --sh-neu-inset: inset 3px 3px 8px rgb(100 72 20 / 0.18), inset -3px -3px 7px rgb(255 255 255 / 0.9);
+  --neu-fill: linear-gradient(145deg, #ffffff, #f3ede0);
+
+  --btn-hi: rgb(255 255 255 / 0.4);
+  --btn-lo: rgb(70 48 8 / 0.35);
+
+  --aurora-1: rgb(226 190 96 / 0.55);
+  --aurora-2: rgb(150 190 240 / 0.45);
+  --aurora-3: rgb(238 176 166 / 0.38);
+  --aurora-opacity: 0.9;
+  --aurora-vignette: rgb(244 239 230 / 0);
+  --grain-opacity: 0.04;
+
+  --tg-from: #16130d;
+  --tg-to: #5a5242;
+  --tga-from: #b88a1e;
+  --tga-mid: #8a6410;
+  --tga-to: #5c420a;
+  --skeleton-a: rgb(60 44 12 / 0.06);
+  --skeleton-b: rgb(60 44 12 / 0.12);
+  --scroll-thumb: rgb(60 44 12 / 0.25);
+  --option-bg: #fffdf9;
+  --option-fg: #16130d;
+  --option-off: #8a8372;
+  --chart-grid: #e3dccd;
+  --chart-axis: #6e6759;
+  --chart-accent: #a87c16;
+  --chart-blue: #2f6fc4;
+  --chart-tooltip: rgb(255 253 249 / 0.96);
+}
+
 @theme inline {
   --font-sans: 'DM Sans Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Fraunces Variable', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
 
   --color-canvas: var(--bg-base);
   --color-surface: var(--bg-surface);
   --color-elevated: var(--bg-elevated);
   --color-overlay: var(--bg-overlay);
-  --color-glass: var(--bg-glass);
+  --color-inset: var(--bg-inset);
   --color-border: var(--border-subtle);
   --color-border-strong: var(--border-strong);
   --color-fg: var(--text-primary);
@@ -85,20 +225,19 @@
   --radius-lg: 24px;
   --radius-xl: 32px;
 
-  /* Elevation: level 1 (surface) is border-only; 2 raised; 3 modal */
-  --shadow-raised: 0 12px 32px rgb(0 0 0 / 0.5), 0 0 0 1px var(--border-subtle), inset 0 1px 0 var(--edge-highlight);
-  --shadow-modal: 0 32px 80px rgb(0 0 0 / 0.7), 0 0 0 1px var(--border-strong), inset 0 1px 0 var(--edge-highlight);
-  --shadow-float: 0 18px 48px rgb(0 0 0 / 0.55), 0 2px 8px rgb(0 0 0 / 0.35);
-  --shadow-glow: 0 0 0 1px rgb(233 200 74 / 0.35), 0 8px 28px var(--accent-glow);
-  /* Neumorphic pair: reserved for small tactile controls (toggles, segmented, icon buttons) */
-  --shadow-neu: 4px 4px 12px rgb(0 0 0 / 0.55), -2px -2px 8px rgb(255 255 255 / 0.035), inset 0 1px 0 rgb(255 255 255 / 0.05);
-  --shadow-neu-inset: inset 2px 3px 8px rgb(0 0 0 / 0.55), inset -1px -1px 4px rgb(255 255 255 / 0.025);
+  --shadow-raised: var(--sh-raised);
+  --shadow-modal: var(--sh-modal);
+  --shadow-float: var(--sh-float);
+  --shadow-glow: var(--sh-glow);
+  --shadow-neu: var(--sh-neu);
+  --shadow-neu-inset: var(--sh-neu-inset);
 
   --animate-fade-in: fade-in var(--dur-base) var(--ease-standard);
   --animate-slide-in-left: slide-in-left var(--dur-slow) var(--ease-emphasized);
   --animate-pop-in: pop-in var(--dur-base) var(--ease-emphasized);
   --animate-shimmer: shimmer 1.6s linear infinite;
   --animate-float-slow: float-slow 9s ease-in-out infinite;
+  --animate-marquee: marquee 38s linear infinite;
   @keyframes fade-in {
     from { opacity: 0; }
     to { opacity: 1; }
@@ -119,6 +258,10 @@
     0%, 100% { transform: translate3d(0, 0, 0); }
     50% { transform: translate3d(0, -10px, 0); }
   }
+  @keyframes marquee {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
 }
 
 @layer base {
@@ -128,9 +271,20 @@
     background: var(--bg-base);
   }
 
-  /* Ambient lighting: two soft pools of colour on a fixed, composited layer behind everything
-     (cheaper than background-attachment: fixed), plus a faint film grain on top (no blend mode, so
-     the browser does not have to re-blend the whole screen on every scroll frame). */
+  /* A slow cross-fade when the theme changes. Only while the toggle is used (the class is added and removed by ThemeToggle). */
+  html.theme-fade,
+  html.theme-fade *,
+  html.theme-fade *::before,
+  html.theme-fade *::after {
+    transition:
+      background-color 320ms var(--ease-standard),
+      border-color 320ms var(--ease-standard),
+      color 320ms var(--ease-standard),
+      fill 320ms var(--ease-standard),
+      stroke 320ms var(--ease-standard),
+      box-shadow 320ms var(--ease-standard) !important;
+  }
+
   body {
     min-height: 100vh;
     color: var(--text-primary);
@@ -141,18 +295,27 @@
     -webkit-font-smoothing: antialiased;
   }
 
+  /* Film grain: a faint texture that stops big gradients from banding and makes surfaces feel printed */
   body::after {
     content: '';
     position: fixed;
     inset: 0;
     z-index: 100;
     pointer-events: none;
-    opacity: 0.022;
+    opacity: var(--grain-opacity);
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   }
 
-  h1, h2, h3 {
-    letter-spacing: -0.02em;
+  /* Headlines are set in a refined serif; everything else stays in the clean sans */
+  h1,
+  h2 {
+    font-family: var(--font-display);
+    font-optical-sizing: auto;
+    font-variation-settings: 'SOFT' 40;
+    letter-spacing: -0.015em;
+  }
+  h3 {
+    letter-spacing: -0.01em;
   }
 
   /* One focus style for everything interactive */
@@ -170,24 +333,20 @@
   /* Quiet, thin scrollbars that match the surfaces */
   * {
     scrollbar-width: thin;
-    scrollbar-color: rgb(255 255 255 / 0.16) transparent;
+    scrollbar-color: var(--scroll-thumb) transparent;
   }
 
   /*
-   * Native <select> menus are drawn by the browser, which paints them white unless told otherwise,
-   * and our light text then vanishes on it. Tell the browser the menu is dark and give every option
-   * an explicit dark background and light text (works in Chrome, Edge and Firefox).
+   * Native <select> menus are drawn by the browser, which paints them in its own colours unless told
+   * otherwise. Tell it which theme this is and give every option an explicit background and text colour.
    */
-  select {
-    color-scheme: dark;
-  }
   select option,
   select optgroup {
-    background-color: #14171c;
-    color: #f6f6f3;
+    background-color: var(--option-bg);
+    color: var(--option-fg);
   }
   select option:disabled {
-    color: #8e9096;
+    color: var(--option-off);
   }
 
   /* Numbers line up in tables and KPI cards */
@@ -202,48 +361,64 @@
     font-size: 12px;
     line-height: 16px;
     font-weight: 600;
-    letter-spacing: 0.12em;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
     color: var(--text-muted);
   }
 
+  /* The display face for page titles and big numbers of speech: serif, light, with a soft optical size */
+  .display {
+    font-family: var(--font-display);
+    font-optical-sizing: auto;
+    font-variation-settings: 'SOFT' 40;
+    font-weight: 400;
+    letter-spacing: -0.025em;
+    line-height: 1.04;
+  }
+  .display em,
+  .display .italic-accent {
+    font-style: italic;
+    font-weight: 400;
+    color: var(--accent);
+  }
+
   /*
-   * SPATIAL WINDOW. The core surface of the app: frosted glass floating over the aurora. A diagonal
-   * sheen (lit from the top left), a bright specular edge on top, a dark edge underneath and a long
-   * soft shadow give it thickness. Pointer-driven highlight: set --mx / --my (see TiltCard).
+   * WINDOW. The core surface of the app. In the dark theme it is frosted glass over the aurora; in the
+   * light theme it is cream glass over warm light. A sheen (lit from the top left), a bright top edge, a
+   * soft bottom edge and a long drop shadow give it thickness. Pointer-driven highlight: --mx / --my.
    */
   .panel {
     position: relative;
-    background-color: rgb(16 19 24 / 0.5);
+    background-color: var(--panel-fill);
     background-image:
-      radial-gradient(28rem 14rem at var(--mx, 12%) var(--my, 0%), rgb(255 255 255 / 0.1), transparent 60%),
-      linear-gradient(155deg, rgb(255 255 255 / 0.085), rgb(255 255 255 / 0.02) 45%, rgb(255 255 255 / 0.035));
+      radial-gradient(28rem 14rem at var(--mx, 12%) var(--my, 0%), var(--panel-spot), transparent 60%),
+      var(--panel-sheen);
     backdrop-filter: blur(26px) saturate(170%);
     -webkit-backdrop-filter: blur(26px) saturate(170%);
     border-color: var(--glass-edge) !important;
     box-shadow:
-      inset 0 1px 0 rgb(255 255 255 / 0.22),
-      inset 0 -1px 0 rgb(0 0 0 / 0.35),
-      0 28px 70px -28px rgb(0 0 0 / 0.75);
+      inset 0 1px 0 var(--panel-top),
+      inset 0 -1px 0 var(--panel-bottom),
+      var(--panel-drop);
   }
 
   /* Floating translucent surface: navigation, map panels, menus, toasts. */
   .glass {
-    background-color: rgb(20 23 29 / 0.42);
-    background-image: linear-gradient(155deg, rgb(255 255 255 / 0.1), rgb(255 255 255 / 0.02) 55%);
+    background-color: var(--glass-fill);
+    background-image: var(--glass-sheen);
     backdrop-filter: blur(30px) saturate(180%);
     -webkit-backdrop-filter: blur(30px) saturate(180%);
     border: 1px solid var(--glass-edge);
     box-shadow:
-      inset 0 1px 0 rgb(255 255 255 / 0.2),
-      inset 0 -1px 0 rgb(0 0 0 / 0.3);
+      inset 0 1px 0 var(--panel-top),
+      inset 0 -1px 0 var(--glass-bottom);
   }
 
   .glass-float {
     box-shadow:
-      var(--shadow-float),
-      inset 0 1px 0 rgb(255 255 255 / 0.22),
-      inset 0 -1px 0 rgb(0 0 0 / 0.3);
+      var(--sh-float),
+      inset 0 1px 0 var(--panel-top),
+      inset 0 -1px 0 var(--glass-bottom);
   }
 
   /* Hover lift for clickable cards: transform + shadow only */
@@ -256,10 +431,10 @@
     .lift:hover {
       transform: perspective(900px) translateY(-4px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
       box-shadow:
-        inset 0 1px 0 rgb(255 255 255 / 0.3),
-        inset 0 -1px 0 rgb(0 0 0 / 0.35),
-        0 36px 80px -24px rgb(0 0 0 / 0.85),
-        0 0 0 1px rgb(233 200 74 / 0.18);
+        inset 0 1px 0 var(--panel-top),
+        inset 0 -1px 0 var(--panel-bottom),
+        var(--lift-drop),
+        0 0 0 1px var(--lift-ring);
     }
   }
   .lift:active {
@@ -268,12 +443,12 @@
 
   /* Tactile (soft neumorphic) control: raised by default, pressed in on :active */
   .neu {
-    background: linear-gradient(145deg, rgb(255 255 255 / 0.07), rgb(255 255 255 / 0.015));
-    box-shadow: var(--shadow-neu);
+    background: var(--neu-fill);
+    box-shadow: var(--sh-neu);
     transition: box-shadow var(--dur-base) var(--ease-standard), transform var(--dur-fast) var(--ease-standard);
   }
   .neu:active {
-    box-shadow: var(--shadow-neu-inset);
+    box-shadow: var(--sh-neu-inset);
     transform: scale(0.97);
   }
 
@@ -299,14 +474,14 @@
   }
 
   .text-gradient {
-    background: linear-gradient(180deg, #fff 0%, #b9bbb6 100%);
+    background: linear-gradient(180deg, var(--tg-from) 0%, var(--tg-to) 100%);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
   }
 
   .text-gradient-accent {
-    background: linear-gradient(135deg, #fff1b0 0%, var(--accent) 50%, #d19a1c 100%);
+    background: linear-gradient(135deg, var(--tga-from) 0%, var(--tga-mid) 50%, var(--tga-to) 100%);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
@@ -314,15 +489,23 @@
 
   /* Skeletons shimmer instead of pulsing */
   .skeleton {
-    background: linear-gradient(100deg, rgb(255 255 255 / 0.05) 30%, rgb(255 255 255 / 0.13) 50%, rgb(255 255 255 / 0.05) 70%);
+    background: linear-gradient(100deg, var(--skeleton-a) 30%, var(--skeleton-b) 50%, var(--skeleton-a) 70%);
     background-size: 200% 100%;
     animation: var(--animate-shimmer);
   }
 
+  /* A hairline with a gold heart: used between editorial sections */
+  .rule {
+    height: 1px;
+    border: 0;
+    background: linear-gradient(90deg, transparent, var(--border-strong) 20%, var(--accent) 50%, var(--border-strong) 80%, transparent);
+    opacity: 0.8;
+  }
+
   /*
    * AURORA: the app's living background. Three large, blurred colour pools drift slowly on their
-   * own compositor layers (transform only). They give the glass something to refract, which is
-   * what makes the windows read as glass. Fixed, behind everything, never interactive.
+   * own compositor layers (transform only). They give the glass something to refract. Fixed, behind
+   * everything, never interactive.
    */
   .aurora {
     position: fixed;
@@ -336,22 +519,22 @@
     position: absolute;
     border-radius: 9999px;
     filter: blur(70px);
-    opacity: 0.95;
+    opacity: var(--aurora-opacity);
     will-change: transform;
   }
   .aurora > span:nth-child(1) {
     width: 46rem; height: 46rem; left: -10rem; top: -14rem;
-    background: radial-gradient(circle at 40% 40%, rgb(233 200 74 / 0.6), transparent 68%);
+    background: radial-gradient(circle at 40% 40%, var(--aurora-1), transparent 68%);
     animation: aurora-a 26s ease-in-out infinite alternate;
   }
   .aurora > span:nth-child(2) {
     width: 42rem; height: 42rem; right: -12rem; top: 6rem;
-    background: radial-gradient(circle at 50% 50%, rgb(88 130 255 / 0.5), transparent 65%);
+    background: radial-gradient(circle at 50% 50%, var(--aurora-2), transparent 65%);
     animation: aurora-b 32s ease-in-out infinite alternate;
   }
   .aurora > span:nth-child(3) {
     width: 38rem; height: 38rem; left: 28%; bottom: -18rem;
-    background: radial-gradient(circle at 50% 50%, rgb(150 90 255 / 0.42), transparent 65%);
+    background: radial-gradient(circle at 50% 50%, var(--aurora-3), transparent 65%);
     animation: aurora-c 38s ease-in-out infinite alternate;
   }
   /* Edge vignette keeps text areas calm */
@@ -359,7 +542,7 @@
     content: '';
     position: absolute;
     inset: 0;
-    background: radial-gradient(120% 90% at 50% 40%, transparent 40%, rgb(6 7 9 / 0.42) 100%);
+    background: radial-gradient(120% 90% at 50% 40%, transparent 40%, var(--aurora-vignette) 100%);
   }
 
   /* Thin progress line under the top edge while a page changes */
@@ -369,7 +552,7 @@
     z-index: 120;
     height: 2px;
     transform-origin: left;
-    background: linear-gradient(90deg, transparent, var(--accent), #fff1b0);
+    background: linear-gradient(90deg, transparent, var(--accent), var(--tga-from));
     box-shadow: 0 0 12px var(--accent-glow);
     pointer-events: none;
   }
@@ -440,4 +623,21 @@
   div[class*='lg:pl-'] {
     padding-left: 0 !important;
   }
+}
+
+/* The hero scene's palette (an SVG drawn with var(...)) */
+:root,
+:root[data-theme='dark'] {
+  --art-bg: #07080a;
+  --art-block: #0d0f12;
+  --art-block-stroke: #181b20;
+  --art-road: #14171b;
+  --art-road-line: #23272d;
+}
+:root[data-theme='light'] {
+  --art-bg: #eee6d6;
+  --art-block: #e6ddc9;
+  --art-block-stroke: #d8cdb4;
+  --art-road: #fbf7ee;
+  --art-road-line: #d6cbb2;
 }

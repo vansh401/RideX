@@ -13,20 +13,20 @@ export const buttonVariants = cva(
       variant: {
         primary: [
           'shine bg-gradient-to-b from-accent-hover to-accent text-on-accent',
-          'shadow-[inset_0_1px_0_rgb(255_255_255/0.45),0_1px_2px_rgb(0_0_0/0.4)]',
+          'shadow-[inset_0_1px_0_var(--btn-hi),0_1px_2px_var(--btn-lo)]',
           'hover:shadow-glow hover:brightness-105 active:brightness-95',
         ],
         secondary: [
           'border border-border-strong bg-elevated/80 text-fg panel',
           'hover:border-fg-muted/60 hover:bg-elevated active:bg-surface',
         ],
-        ghost: 'text-fg-secondary hover:bg-white/[0.06] hover:text-fg active:bg-white/[0.09]',
+        ghost: 'text-fg-secondary hover:bg-fg/[0.06] hover:text-fg active:bg-fg/[0.09]',
         danger: [
-          'bg-danger text-canvas shadow-[inset_0_1px_0_rgb(255_255_255/0.3)]',
+          'bg-danger text-canvas shadow-[inset_0_1px_0_var(--btn-hi)]',
           'hover:brightness-110 active:brightness-95',
         ],
         // White high-emphasis button used on the landing hero
-        inverse: 'bg-fg text-canvas shadow-[inset_0_-2px_0_rgb(0_0_0/0.12)] hover:bg-white',
+        inverse: 'bg-fg text-canvas shadow-[inset_0_-2px_0_rgb(0_0_0/0.12)] hover:opacity-90',
         link: 'h-auto p-0 text-accent underline-offset-4 hover:underline active:scale-100',
       },
       size: {

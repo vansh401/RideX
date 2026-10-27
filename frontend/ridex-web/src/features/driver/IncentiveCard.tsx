@@ -24,7 +24,7 @@ export function IncentiveCard() {
           aria-valuemax={target}
           aria-valuenow={Math.min(data.tripsToday, target)}
           aria-label="Trips toward the next bonus"
-          className="h-2.5 overflow-hidden rounded-full bg-white/10"
+          className="h-2.5 overflow-hidden rounded-full bg-fg/10"
         >
           <div className="h-full rounded-full bg-gradient-to-r from-accent to-accent-hover transition-[width] duration-(--dur-slow)" style={{ width: `${percent}%` }} />
         </div>

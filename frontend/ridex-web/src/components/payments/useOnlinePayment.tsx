@@ -143,7 +143,7 @@ export function useOnlinePayment(user?: { name?: string; email?: string }): { pa
       <DialogContent title="Test checkout" description="No real money moves. This stands in for the payment window until real payment keys are configured.">
         {mock && (
           <div className="flex flex-col gap-4">
-            <div className="rounded-md border border-border bg-black/20 p-4 text-center">
+            <div className="rounded-md border border-border bg-inset p-4 text-center">
               <p className="text-sm text-fg-muted">{mock.request.description}</p>
               <p className="tabular mt-1 text-3xl font-bold text-fg">{formatINR(mock.order.amount)}</p>
             </div>

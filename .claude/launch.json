@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "ridex-web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "frontend/ridex-web", "run", "dev"],
+      "port": 5173
+    }
+  ]
+}
