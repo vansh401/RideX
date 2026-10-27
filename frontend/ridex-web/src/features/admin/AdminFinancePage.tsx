@@ -230,7 +230,7 @@ export function AdminFinancePage() {
           {refunds.data?.length === 0 && <p className="text-sm text-fg-muted">No refunds yet.</p>}
           <ul className="flex flex-col gap-2">
             {refunds.data?.slice(0, 8).map((r) => (
-              <li key={r.id} className="flex items-center justify-between gap-3 rounded-md bg-white/[0.04] px-3 py-2 text-sm">
+              <li key={r.id} className="flex items-center justify-between gap-3 rounded-md bg-fg/[0.04] px-3 py-2 text-sm">
                 <span className="min-w-0 text-fg-secondary">
                   <span className="tabular font-semibold text-fg">{formatINR(r.amount)}</span> · {r.source.toLowerCase()} · {formatDateTime(r.createdAt)}
                   {r.failureReason && <span className="block truncate text-xs text-danger">{r.failureReason}</span>}
@@ -245,7 +245,7 @@ export function AdminFinancePage() {
           {surge.data?.length === 0 && <p className="text-sm text-fg-muted">No surge anywhere: prices are normal.</p>}
           <ul className="flex flex-col gap-2">
             {surge.data?.map((z) => (
-              <li key={z.zone} className="flex items-center justify-between gap-3 rounded-md bg-white/[0.04] px-3 py-2 text-sm">
+              <li key={z.zone} className="flex items-center justify-between gap-3 rounded-md bg-fg/[0.04] px-3 py-2 text-sm">
                 <span className="flex items-center gap-2 text-fg-secondary">
                   <Flame className="size-4 text-accent" aria-hidden /> Zone {z.zone} ({z.latitude.toFixed(3)}, {z.longitude.toFixed(3)})
                 </span>

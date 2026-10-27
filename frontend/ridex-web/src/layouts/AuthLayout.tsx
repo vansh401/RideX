@@ -1,6 +1,7 @@
 import { ShieldCheck, Route, Wallet } from 'lucide-react'
 import { Link, Outlet } from 'react-router-dom'
 import { Logo } from '@/components/brand/Logo'
+import { ThemeToggle } from '@/components/brand/ThemeToggle'
 import { PageTransition } from '@/components/brand/PageTransition'
 import { HeroArt } from '@/features/landing/HeroArt'
 
@@ -43,10 +44,11 @@ export function AuthLayout() {
       </aside>
 
       <main className="flex flex-col px-4 py-6 sm:px-8">
-        <div className="lg:hidden">
-          <Link to="/" aria-label="RideX home">
+        <div className="flex items-center justify-between">
+          <Link to="/" aria-label="RideX home" className="lg:invisible">
             <Logo />
           </Link>
+          <ThemeToggle />
         </div>
         <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center py-10">
           <div className="panel rounded-xl border border-border bg-surface/80 p-6 shadow-raised backdrop-blur-xl sm:p-8">

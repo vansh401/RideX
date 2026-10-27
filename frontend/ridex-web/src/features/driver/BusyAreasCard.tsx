@@ -22,7 +22,7 @@ export function BusyAreasCard() {
         {data?.length === 0 && <p className="text-sm text-fg-muted">Demand is normal everywhere right now. Busy areas show up here when riders outnumber drivers.</p>}
         <ul className="flex flex-col gap-2">
           {data?.map((z) => (
-            <li key={z.zone} className="flex items-center justify-between gap-3 rounded-md bg-white/[0.04] px-3 py-2.5">
+            <li key={z.zone} className="flex items-center justify-between gap-3 rounded-md bg-fg/[0.04] px-3 py-2.5">
               <span className="flex items-center gap-2 text-sm text-fg">
                 <MapPin className="size-4 text-fg-muted" aria-hidden />
                 <a

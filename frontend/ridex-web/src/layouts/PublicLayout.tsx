@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { Link, Outlet } from 'react-router-dom'
 import { useAuth } from '@/auth/useAuth'
 import { Logo } from '@/components/brand/Logo'
+import { ThemeToggle } from '@/components/brand/ThemeToggle'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { cn } from '@/lib/cn'
@@ -10,7 +11,7 @@ import { homePathFor } from '@/routes/navigation'
 
 const LINKS = [
   { href: '/#how', label: 'How it works' },
-  { href: '/#riders', label: 'Ride' },
+  { href: '/#rides', label: 'Ride' },
   { href: '/#drivers', label: 'Drive' },
   { href: '/#safety', label: 'Safety' },
 ]
@@ -49,6 +50,7 @@ function PublicNav() {
         </nav>
 
         <div className="hidden items-center gap-3 md:flex">
+          <ThemeToggle />
           {signedIn ? (
             <Button asChild variant="inverse" size="sm">
               <Link to={homePathFor(user.role)}>Open RideX</Link>
@@ -91,6 +93,7 @@ function PublicNav() {
               ))}
             </nav>
             <div className="mt-auto flex flex-col gap-3 pb-2">
+              <ThemeToggle className="self-start" />
               {signedIn ? (
                 <Button asChild variant="inverse">
                   <Link to={homePathFor(user.role)}>Open RideX</Link>
@@ -127,7 +130,7 @@ function Footer() {
           <p className="eyebrow mb-3">Product</p>
           <ul className="space-y-2 text-sm text-fg-secondary">
             <li><a className="hover:text-fg" href="/#how">How it works</a></li>
-            <li><a className="hover:text-fg" href="/#riders">For riders</a></li>
+            <li><a className="hover:text-fg" href="/#rides">For riders</a></li>
             <li><a className="hover:text-fg" href="/#drivers">For drivers</a></li>
             <li><a className="hover:text-fg" href="/#safety">Safety</a></li>
           </ul>

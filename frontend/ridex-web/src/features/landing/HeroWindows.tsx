@@ -20,7 +20,7 @@ function Dots() {
 }
 
 function Bar({ w, accent = false }: { w: string; accent?: boolean }) {
-  return <span className={`block h-2.5 rounded-full ${accent ? 'bg-accent/60' : 'bg-white/15'}`} style={{ width: w }} />
+  return <span className={`block h-2.5 rounded-full ${accent ? 'bg-accent/60' : 'bg-fg/15'}`} style={{ width: w }} />
 }
 
 function Floating({
@@ -84,13 +84,13 @@ export function HeroWindows() {
               <span className="size-1.5 animate-pulse rounded-full bg-success" /> Driver on the way
             </span>
           </div>
-          <div className="relative h-44 overflow-hidden rounded-lg border border-white/10 bg-black/30">
+          <div className="relative h-44 overflow-hidden rounded-lg border border-border bg-inset">
             <svg viewBox="0 0 400 176" className="absolute inset-0 size-full" fill="none">
-              <path d="M0 120 C 90 100, 120 150, 210 110 S 330 60, 400 70" stroke="#ffffff" strokeOpacity=".07" strokeWidth="26" />
-              <path d="M70 0 C 90 60, 60 110, 110 176" stroke="#ffffff" strokeOpacity=".06" strokeWidth="22" />
-              <path d="M52 140 C 110 100, 160 130, 220 92 S 320 50, 352 34" stroke="#e9c84a" strokeWidth="3" strokeLinecap="round" strokeDasharray="2 9" style={{ animation: 'route-flow 1.4s linear infinite' }} />
-              <circle cx="52" cy="140" r="7" fill="#f6f6f3" />
-              <circle cx="352" cy="34" r="8" fill="#e9c84a" />
+              <path d="M0 120 C 90 100, 120 150, 210 110 S 330 60, 400 70" stroke="var(--text-primary)" strokeOpacity=".07" strokeWidth="26" />
+              <path d="M70 0 C 90 60, 60 110, 110 176" stroke="var(--text-primary)" strokeOpacity=".06" strokeWidth="22" />
+              <path d="M52 140 C 110 100, 160 130, 220 92 S 320 50, 352 34" stroke="var(--accent)" strokeWidth="3" strokeLinecap="round" strokeDasharray="2 9" style={{ animation: 'route-flow 1.4s linear infinite' }} />
+              <circle cx="52" cy="140" r="7" fill="var(--text-primary)" />
+              <circle cx="352" cy="34" r="8" fill="var(--accent)" />
             </svg>
           </div>
           <div className="mt-3 space-y-2.5">
@@ -132,7 +132,7 @@ export function HeroWindows() {
       {/* Fare picker: nearest to the viewer, moves the most */}
       <Floating depth={36} mx={mx} my={my} delay={0.75} className="right-[2%] top-[62%] w-64">
         <div className="glass glass-float rounded-xl p-3.5">
-          <div className="flex gap-1.5 rounded-lg bg-black/30 p-1 shadow-neu-inset">
+          <div className="flex gap-1.5 rounded-lg bg-inset p-1 shadow-neu-inset">
             {[
               { Icon: Bike, on: false },
               { Icon: CarTaxiFront, on: false },

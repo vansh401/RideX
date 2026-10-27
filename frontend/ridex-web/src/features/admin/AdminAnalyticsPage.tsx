@@ -98,7 +98,7 @@ export function AdminAnalyticsPage() {
               <CartesianGrid stroke={CHART.grid} vertical={false} />
               <XAxis dataKey="label" stroke={CHART.axis} fontSize={12} interval="preserveStartEnd" />
               <YAxis stroke={CHART.axis} fontSize={12} />
-              <Tooltip contentStyle={tooltip} cursor={{ fill: '#ffffff10' }} />
+              <Tooltip contentStyle={tooltip} cursor={{ fill: 'rgb(128 128 128 / 0.12)' }} />
               <Bar dataKey="grossBookings" name="₹" fill={CHART.accent} radius={[6, 6, 0, 0]} />
             </BarChart>
           </ChartCard>
@@ -109,7 +109,7 @@ export function AdminAnalyticsPage() {
               <CartesianGrid stroke={CHART.grid} vertical={false} />
               <XAxis dataKey="hour" stroke={CHART.axis} fontSize={12} />
               <YAxis allowDecimals={false} stroke={CHART.axis} fontSize={12} />
-              <Tooltip contentStyle={tooltip} cursor={{ fill: '#ffffff10' }} />
+              <Tooltip contentStyle={tooltip} cursor={{ fill: 'rgb(128 128 128 / 0.12)' }} />
               <Bar dataKey="rides" name="Rides" fill={CHART.accent} radius={[6, 6, 0, 0]} />
             </BarChart>
           </ChartCard>
@@ -120,7 +120,7 @@ export function AdminAnalyticsPage() {
               <CartesianGrid stroke={CHART.grid} vertical={false} />
               <XAxis dataKey="name" stroke={CHART.axis} fontSize={12} />
               <YAxis stroke={CHART.axis} fontSize={12} />
-              <Tooltip contentStyle={tooltip} cursor={{ fill: '#ffffff10' }} />
+              <Tooltip contentStyle={tooltip} cursor={{ fill: 'rgb(128 128 128 / 0.12)' }} />
               <Bar dataKey="grossBookings" name="₹" fill={CHART.accent} radius={[6, 6, 0, 0]} />
             </BarChart>
           </ChartCard>

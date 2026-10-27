@@ -1,4 +1,6 @@
 import '@fontsource-variable/dm-sans'
+import '@fontsource-variable/fraunces/opsz.css'
+import '@fontsource-variable/fraunces/opsz-italic.css'
 import { MotionConfig } from 'motion/react'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'

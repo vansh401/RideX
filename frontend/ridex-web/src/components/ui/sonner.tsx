@@ -1,15 +1,17 @@
 import { CircleCheckIcon, InfoIcon, Loader2Icon, OctagonXIcon, TriangleAlertIcon } from 'lucide-react'
 import type { CSSProperties } from 'react'
 import { Toaster as Sonner, type ToasterProps } from 'sonner'
+import { useTheme } from '@/lib/theme'
 
 /**
  * Toasts as small glass windows. Structure follows the shadcn/ui "sonner" component (icons per kind,
- * colours through CSS variables); RideX is dark-only, so there is no theme switch.
+ * colours through CSS variables); the toast follows the active theme.
  */
 export function Toaster(props: ToasterProps) {
+  const { theme } = useTheme()
   return (
     <Sonner
-      theme="dark"
+      theme={theme}
       position="top-right"
       className="toaster group"
       icons={{

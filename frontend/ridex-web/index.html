@@ -1,10 +1,20 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="light">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ridex-web</title>
+    <meta name="description" content="RideX: book a ride in seconds, follow it live, pay your way." />
+    <title>RideX</title>
+    <!-- Sets the colour theme before the first paint, so there is never a flash of the wrong one. Light is the default; a saved choice wins. -->
+    <script>
+      try {
+        var saved = localStorage.getItem('ridex-theme')
+        document.documentElement.dataset.theme = saved === 'dark' ? 'dark' : 'light'
+      } catch (e) {
+        document.documentElement.dataset.theme = 'light'
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
