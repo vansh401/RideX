@@ -45,7 +45,7 @@ RUN java -Djarmode=tools -jar /workspace/${MODULE}/target/${MODULE}-*.jar extrac
 # Stage 3: runtime (this is the image)
 # ---------------------------------------------------------------------------------------------------------------------------
 # JRE only (no compiler, no Maven), on Alpine Linux (a 5 MB base). Pinned to a major version, never "latest".
-FROM eclipse-temurin:21-jre-alpine AS runtime
+FROM eclipse-temurin:25-jre-alpine AS runtime
 
 ARG PORT=8080
 
